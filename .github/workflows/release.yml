@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Build app
+        run: scripts/build-app.sh "${GITHUB_REF_NAME#v}"
+      - name: Package
+        run: cd build && ditto -c -k --keepParent Limpo.app Limpo.zip && shasum -a 256 Limpo.zip > Limpo.zip.sha256
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/Limpo.zip build/Limpo.zip.sha256 \
+            --title "Limpo $GITHUB_REF_NAME" --generate-notes

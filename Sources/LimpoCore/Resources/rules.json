@@ -1,0 +1,318 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "ai-claude-code",
+      "section": "AI tools",
+      "title": "Claude Code",
+      "detail": "Debug logs, shell snapshots, telemetry and caches. Files touched in the last 24 hours are kept so active sessions are not affected.",
+      "risk": "safe",
+      "autoSelect": true,
+      "minAgeHours": 24,
+      "targets": [
+        { "path": "~/.claude/debug/*" },
+        { "path": "~/.claude/shell-snapshots/*" },
+        { "path": "~/.claude/telemetry/*" },
+        { "path": "~/.claude/cache/*" },
+        { "path": "~/Library/Caches/claude-cli-nodejs/*" }
+      ]
+    },
+    {
+      "id": "ai-claude-temp",
+      "section": "AI tools",
+      "title": "Claude Code temporary folders",
+      "detail": "Per-session scratch folders in /tmp. Only folders older than 24 hours are listed.",
+      "risk": "review",
+      "autoSelect": false,
+      "minAgeHours": 24,
+      "targets": [{ "path": "/private/tmp/claude-*" }]
+    },
+    {
+      "id": "ai-claude-desktop",
+      "section": "AI tools",
+      "title": "Claude Desktop caches",
+      "detail": "Chromium web and GPU caches used by the Claude desktop app.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Application Support/Claude/Cache" },
+        { "path": "~/Library/Application Support/Claude/Code Cache" },
+        { "path": "~/Library/Application Support/Claude/GPUCache" },
+        { "path": "~/Library/Application Support/Claude/DawnCache" },
+        { "path": "~/Library/Application Support/Claude/DawnGraphiteCache" },
+        { "path": "~/Library/Application Support/Claude/DawnWebGPUCache" },
+        { "path": "~/Library/Application Support/Claude/GraphiteDawnCache" },
+        { "path": "~/Library/Caches/com.anthropic.claudefordesktop*" }
+      ]
+    },
+    {
+      "id": "ai-codex",
+      "section": "AI tools",
+      "title": "Codex",
+      "detail": "Temporary files and caches of the OpenAI Codex CLI. Files touched in the last 24 hours are kept.",
+      "risk": "safe",
+      "autoSelect": true,
+      "minAgeHours": 24,
+      "targets": [
+        { "path": "~/.codex/tmp/*" },
+        { "path": "~/.codex/cache/*" },
+        { "path": "~/Library/Caches/com.openai.codex*" }
+      ]
+    },
+    {
+      "id": "ai-gemini",
+      "section": "AI tools",
+      "title": "Gemini CLI",
+      "detail": "Temporary files of the Gemini CLI. Files touched in the last 24 hours are kept.",
+      "risk": "safe",
+      "autoSelect": true,
+      "minAgeHours": 24,
+      "targets": [{ "path": "~/.gemini/tmp/*" }]
+    },
+    {
+      "id": "ai-cursor",
+      "section": "AI tools",
+      "title": "Cursor caches",
+      "detail": "Web, GPU and code caches of the Cursor editor.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Application Support/Cursor/Cache" },
+        { "path": "~/Library/Application Support/Cursor/CachedData" },
+        { "path": "~/Library/Application Support/Cursor/Code Cache" },
+        { "path": "~/Library/Application Support/Cursor/GPUCache" },
+        { "path": "~/Library/Application Support/Cursor/logs" },
+        { "path": "~/Library/Caches/com.todesktop.230313mzl4w4u92*" }
+      ]
+    },
+    {
+      "id": "ai-opencode",
+      "section": "AI tools",
+      "title": "OpenCode",
+      "detail": "Logs and caches of the OpenCode CLI.",
+      "risk": "safe",
+      "autoSelect": true,
+      "minAgeHours": 24,
+      "targets": [
+        { "path": "~/.local/share/opencode/log/*" },
+        { "path": "~/.cache/opencode" }
+      ]
+    },
+    {
+      "id": "ai-local-models",
+      "section": "AI tools",
+      "title": "Local AI models",
+      "detail": "Models downloaded by Ollama and LM Studio. Removing them may break projects that use them; they must be downloaded again.",
+      "risk": "caution",
+      "autoSelect": false,
+      "targets": [
+        { "path": "~/.ollama/models" },
+        { "path": "~/.lmstudio/models/*/*" }
+      ]
+    },
+    {
+      "id": "dev-xcode-derived-data",
+      "section": "Developer tools",
+      "title": "Xcode Derived Data",
+      "detail": "Build products and indexes. Xcode rebuilds them on the next build.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [{ "path": "~/Library/Developer/Xcode/DerivedData/*" }]
+    },
+    {
+      "id": "dev-xcode-device-support",
+      "section": "Developer tools",
+      "title": "Xcode device support",
+      "detail": "Debug symbols copied from connected devices. Recreated the next time a device is connected.",
+      "risk": "review",
+      "autoSelect": false,
+      "targets": [
+        { "path": "~/Library/Developer/Xcode/iOS DeviceSupport/*" },
+        { "path": "~/Library/Developer/Xcode/watchOS DeviceSupport/*" },
+        { "path": "~/Library/Developer/Xcode/tvOS DeviceSupport/*" },
+        { "path": "~/Library/Developer/Xcode/macOS DeviceSupport/*" },
+        { "path": "~/Library/Developer/Xcode/visionOS DeviceSupport/*" }
+      ]
+    },
+    {
+      "id": "dev-xcode-archives",
+      "section": "Developer tools",
+      "title": "Xcode archives",
+      "detail": "App archives from past releases. Needed to symbolicate crash reports of those versions.",
+      "risk": "caution",
+      "autoSelect": false,
+      "targets": [{ "path": "~/Library/Developer/Xcode/Archives/*" }]
+    },
+    {
+      "id": "dev-simulator-caches",
+      "section": "Developer tools",
+      "title": "Simulator and preview caches",
+      "detail": "CoreSimulator caches and SwiftUI preview data.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Developer/CoreSimulator/Caches/*" },
+        { "path": "~/Library/Developer/Xcode/UserData/Previews/*" }
+      ]
+    },
+    {
+      "id": "dev-package-caches",
+      "section": "Developer tools",
+      "title": "Package manager caches",
+      "detail": "Downloaded packages kept by Homebrew, npm, Yarn, pip, Poetry, Bun, Deno, CocoaPods, Cargo and Go. They are downloaded again when needed.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Caches/Homebrew/*" },
+        { "path": "~/.npm/_cacache" },
+        { "path": "~/.npm/_logs" },
+        { "path": "~/Library/Caches/Yarn" },
+        { "path": "~/.yarn/berry/cache" },
+        { "path": "~/Library/Caches/pip" },
+        { "path": "~/Library/Caches/pypoetry" },
+        { "path": "~/.bun/install/cache" },
+        { "path": "~/Library/Caches/deno" },
+        { "path": "~/Library/Caches/CocoaPods" },
+        { "path": "~/.cargo/registry/cache" },
+        { "path": "~/Library/Caches/go-build" }
+      ]
+    },
+    {
+      "id": "dev-large-dependency-stores",
+      "section": "Developer tools",
+      "title": "Shared dependency stores",
+      "detail": "Global stores for pnpm, uv, Go modules, Gradle and Maven. Safe to remove, but every project downloads its dependencies again.",
+      "risk": "review",
+      "autoSelect": false,
+      "targets": [
+        { "path": "~/Library/pnpm/store" },
+        { "path": "~/.cache/uv" },
+        { "path": "~/go/pkg/mod" },
+        { "path": "~/.gradle/caches" },
+        { "path": "~/.m2/repository" },
+        { "path": "~/.cargo/git/checkouts" }
+      ]
+    },
+    {
+      "id": "dev-editor-caches",
+      "section": "Developer tools",
+      "title": "Editor caches",
+      "detail": "Caches and logs of Visual Studio Code and JetBrains IDEs.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Application Support/Code/Cache" },
+        { "path": "~/Library/Application Support/Code/CachedData" },
+        { "path": "~/Library/Application Support/Code/CachedExtensionVSIXs" },
+        { "path": "~/Library/Application Support/Code/Code Cache" },
+        { "path": "~/Library/Application Support/Code/GPUCache" },
+        { "path": "~/Library/Application Support/Code/logs" },
+        { "path": "~/Library/Caches/JetBrains/*" }
+      ]
+    },
+    {
+      "id": "system-user-caches",
+      "section": "System",
+      "title": "App caches",
+      "detail": "Files apps keep to load faster. Apps recreate them as needed.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        {
+          "path": "~/Library/Caches/*",
+          "exclude": [
+            "com.apple.nsurlsessiond", "com.apple.bird", "CloudKit", "com.apple.CloudKit*",
+            "com.apple.akd", "FamilyCircle", "com.apple.containermanagerd", "com.apple.ap.adprivacyd",
+            "com.apple.HomeKit", "com.apple.findmy*", "io.github.guiboorges.limpo*"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system-sandbox-caches",
+      "section": "System",
+      "title": "Sandboxed app caches",
+      "detail": "Caches inside App Store and sandboxed app containers. Requires Full Disk Access.",
+      "risk": "safe",
+      "autoSelect": true,
+      "requiresFullDiskAccess": true,
+      "targets": [{ "path": "~/Library/Containers/*/Data/Library/Caches/*" }]
+    },
+    {
+      "id": "system-user-logs",
+      "section": "System",
+      "title": "Log files",
+      "detail": "Logs written by apps. Only useful when diagnosing a problem.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/Logs/*", "exclude": ["DiagnosticReports"] },
+        { "path": "~/Library/Logs/DiagnosticReports/*" }
+      ]
+    },
+    {
+      "id": "system-sandbox-logs",
+      "section": "System",
+      "title": "Sandboxed app logs",
+      "detail": "Logs inside app containers. Requires Full Disk Access.",
+      "risk": "safe",
+      "autoSelect": true,
+      "requiresFullDiskAccess": true,
+      "targets": [{ "path": "~/Library/Containers/*/Data/Library/Logs/*" }]
+    },
+    {
+      "id": "system-mail-downloads",
+      "section": "System",
+      "title": "Mail downloads",
+      "detail": "Copies of attachments you opened from Mail. The originals stay in your mailbox. Requires Full Disk Access.",
+      "risk": "review",
+      "autoSelect": true,
+      "requiresFullDiskAccess": true,
+      "targets": [{ "path": "~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads/*" }]
+    },
+    {
+      "id": "system-ios-updates",
+      "section": "System",
+      "title": "iOS and iPadOS update files",
+      "detail": "Firmware files downloaded to update devices. Downloaded again if needed.",
+      "risk": "safe",
+      "autoSelect": true,
+      "targets": [
+        { "path": "~/Library/iTunes/iPhone Software Updates/*.ipsw" },
+        { "path": "~/Library/iTunes/iPad Software Updates/*.ipsw" }
+      ]
+    },
+    {
+      "id": "system-ios-backups",
+      "section": "System",
+      "title": "iPhone and iPad backups",
+      "detail": "Local device backups. Remove only backups of devices you no longer use or that are backed up elsewhere. Requires Full Disk Access.",
+      "risk": "caution",
+      "autoSelect": false,
+      "requiresFullDiskAccess": true,
+      "targets": [{ "path": "~/Library/Application Support/MobileSync/Backup/*" }]
+    },
+    {
+      "id": "system-installers",
+      "section": "System",
+      "title": "Installers in Downloads",
+      "detail": "Disk images and installer packages in your Downloads folder.",
+      "risk": "review",
+      "autoSelect": false,
+      "targets": [
+        { "path": "~/Downloads/*.dmg" },
+        { "path": "~/Downloads/*.pkg" },
+        { "path": "~/Downloads/*.mpkg" }
+      ]
+    },
+    {
+      "id": "trash",
+      "section": "Trash",
+      "title": "Trash",
+      "detail": "Items already in your Trash. Emptying the Trash is always permanent.",
+      "risk": "review",
+      "autoSelect": false,
+      "targets": [{ "path": "~/.Trash/*" }]
+    }
+  ]
+}

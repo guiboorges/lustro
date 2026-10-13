@@ -1,0 +1,84 @@
+import Foundation
+
+/// How much care a group of items needs before removal.
+public enum RiskLevel: String, Codable, Sendable, CaseIterable, Comparable {
+    /// Regenerated automatically by the system or the owning app.
+    case safe
+    /// Usually fine to remove, but worth a quick look.
+    case review
+    /// May contain data the user wants to keep; never auto-selected.
+    case caution
+
+    private var rank: Int {
+        switch self {
+        case .safe: 0
+        case .review: 1
+        case .caution: 2
+        }
+    }
+
+    public static func < (lhs: RiskLevel, rhs: RiskLevel) -> Bool { lhs.rank < rhs.rank }
+}
+
+/// A single file or folder that a scanner proposes to remove.
+public struct ScanItem: Identifiable, Hashable, Sendable {
+    public var id: String { url.path }
+    public let url: URL
+    public let size: Int64
+    public let isDirectory: Bool
+    public let lastModified: Date?
+    /// Optional human-readable context, e.g. "next to package.json".
+    public let note: String?
+
+    public init(url: URL, size: Int64, isDirectory: Bool, lastModified: Date? = nil, note: String? = nil) {
+        self.url = url.standardizedFileURL
+        self.size = size
+        self.isDirectory = isDirectory
+        self.lastModified = lastModified
+        self.note = note
+    }
+}
+
+/// A named set of items shown together in the review UI.
+public struct ScanGroup: Identifiable, Hashable, Sendable {
+    public let id: String
+    public let title: String
+    public let detail: String
+    public let section: String
+    public let risk: RiskLevel
+    /// Whether items in this group start selected in the review list.
+    public let autoSelect: Bool
+    public var items: [ScanItem]
+
+    public var totalSize: Int64 { items.reduce(0) { $0 + $1.size } }
+
+    public init(id: String, title: String, detail: String, section: String, risk: RiskLevel, autoSelect: Bool, items: [ScanItem]) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+        self.section = section
+        self.risk = risk
+        self.autoSelect = autoSelect && risk != .caution
+        self.items = items
+    }
+}
+
+/// Progress reported while a scan runs.
+public struct ScanProgress: Sendable {
+    public let message: String
+    public let fraction: Double?
+
+    public init(message: String, fraction: Double? = nil) {
+        self.message = message
+        self.fraction = fraction
+    }
+}
+
+public typealias ProgressHandler = @Sendable (ScanProgress) -> Void
+
+public extension Int64 {
+    /// Human-readable byte count, e.g. "1.2 GB".
+    var formattedBytes: String {
+        ByteCountFormatter.string(fromByteCount: self, countStyle: .file)
+    }
+}
