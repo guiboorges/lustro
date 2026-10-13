@@ -10,11 +10,21 @@
       "autoSelect": true,
       "minAgeHours": 24,
       "targets": [
-        { "path": "~/.claude/debug/*" },
-        { "path": "~/.claude/shell-snapshots/*" },
-        { "path": "~/.claude/telemetry/*" },
-        { "path": "~/.claude/cache/*" },
-        { "path": "~/Library/Caches/claude-cli-nodejs/*" }
+        {
+          "path": "~/.claude/debug/*"
+        },
+        {
+          "path": "~/.claude/shell-snapshots/*"
+        },
+        {
+          "path": "~/.claude/telemetry/*"
+        },
+        {
+          "path": "~/.claude/cache/*"
+        },
+        {
+          "path": "~/Library/Caches/claude-cli-nodejs/*"
+        }
       ]
     },
     {
@@ -25,7 +35,11 @@
       "risk": "review",
       "autoSelect": false,
       "minAgeHours": 24,
-      "targets": [{ "path": "/private/tmp/claude-*" }]
+      "targets": [
+        {
+          "path": "/private/tmp/claude-*"
+        }
+      ]
     },
     {
       "id": "ai-claude-desktop",
@@ -34,15 +48,34 @@
       "detail": "Chromium web and GPU caches used by the Claude desktop app.",
       "risk": "safe",
       "autoSelect": true,
+      "owners": [
+        "com.anthropic.claudefordesktop"
+      ],
       "targets": [
-        { "path": "~/Library/Application Support/Claude/Cache" },
-        { "path": "~/Library/Application Support/Claude/Code Cache" },
-        { "path": "~/Library/Application Support/Claude/GPUCache" },
-        { "path": "~/Library/Application Support/Claude/DawnCache" },
-        { "path": "~/Library/Application Support/Claude/DawnGraphiteCache" },
-        { "path": "~/Library/Application Support/Claude/DawnWebGPUCache" },
-        { "path": "~/Library/Application Support/Claude/GraphiteDawnCache" },
-        { "path": "~/Library/Caches/com.anthropic.claudefordesktop*" }
+        {
+          "path": "~/Library/Application Support/Claude/Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/Code Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/GPUCache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/DawnCache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/DawnGraphiteCache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/DawnWebGPUCache"
+        },
+        {
+          "path": "~/Library/Application Support/Claude/GraphiteDawnCache"
+        },
+        {
+          "path": "~/Library/Caches/com.anthropic.claudefordesktop*"
+        }
       ]
     },
     {
@@ -54,9 +87,15 @@
       "autoSelect": true,
       "minAgeHours": 24,
       "targets": [
-        { "path": "~/.codex/tmp/*" },
-        { "path": "~/.codex/cache/*" },
-        { "path": "~/Library/Caches/com.openai.codex*" }
+        {
+          "path": "~/.codex/tmp/*"
+        },
+        {
+          "path": "~/.codex/cache/*"
+        },
+        {
+          "path": "~/Library/Caches/com.openai.codex*"
+        }
       ]
     },
     {
@@ -67,7 +106,11 @@
       "risk": "safe",
       "autoSelect": true,
       "minAgeHours": 24,
-      "targets": [{ "path": "~/.gemini/tmp/*" }]
+      "targets": [
+        {
+          "path": "~/.gemini/tmp/*"
+        }
+      ]
     },
     {
       "id": "ai-cursor",
@@ -76,13 +119,28 @@
       "detail": "Web, GPU and code caches of the Cursor editor.",
       "risk": "safe",
       "autoSelect": true,
+      "owners": [
+        "com.todesktop.230313mzl4w4u92"
+      ],
       "targets": [
-        { "path": "~/Library/Application Support/Cursor/Cache" },
-        { "path": "~/Library/Application Support/Cursor/CachedData" },
-        { "path": "~/Library/Application Support/Cursor/Code Cache" },
-        { "path": "~/Library/Application Support/Cursor/GPUCache" },
-        { "path": "~/Library/Application Support/Cursor/logs" },
-        { "path": "~/Library/Caches/com.todesktop.230313mzl4w4u92*" }
+        {
+          "path": "~/Library/Application Support/Cursor/Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Cursor/CachedData"
+        },
+        {
+          "path": "~/Library/Application Support/Cursor/Code Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Cursor/GPUCache"
+        },
+        {
+          "path": "~/Library/Application Support/Cursor/logs"
+        },
+        {
+          "path": "~/Library/Caches/com.todesktop.230313mzl4w4u92*"
+        }
       ]
     },
     {
@@ -94,8 +152,12 @@
       "autoSelect": true,
       "minAgeHours": 24,
       "targets": [
-        { "path": "~/.local/share/opencode/log/*" },
-        { "path": "~/.cache/opencode" }
+        {
+          "path": "~/.local/share/opencode/log/*"
+        },
+        {
+          "path": "~/.cache/opencode"
+        }
       ]
     },
     {
@@ -106,8 +168,12 @@
       "risk": "caution",
       "autoSelect": false,
       "targets": [
-        { "path": "~/.ollama/models" },
-        { "path": "~/.lmstudio/models/*/*" }
+        {
+          "path": "~/.ollama/models"
+        },
+        {
+          "path": "~/.lmstudio/models/*/*"
+        }
       ]
     },
     {
@@ -117,7 +183,14 @@
       "detail": "Build products and indexes. Xcode rebuilds them on the next build.",
       "risk": "safe",
       "autoSelect": true,
-      "targets": [{ "path": "~/Library/Developer/Xcode/DerivedData/*" }]
+      "owners": [
+        "com.apple.dt.Xcode"
+      ],
+      "targets": [
+        {
+          "path": "~/Library/Developer/Xcode/DerivedData/*"
+        }
+      ]
     },
     {
       "id": "dev-xcode-device-support",
@@ -127,11 +200,21 @@
       "risk": "review",
       "autoSelect": false,
       "targets": [
-        { "path": "~/Library/Developer/Xcode/iOS DeviceSupport/*" },
-        { "path": "~/Library/Developer/Xcode/watchOS DeviceSupport/*" },
-        { "path": "~/Library/Developer/Xcode/tvOS DeviceSupport/*" },
-        { "path": "~/Library/Developer/Xcode/macOS DeviceSupport/*" },
-        { "path": "~/Library/Developer/Xcode/visionOS DeviceSupport/*" }
+        {
+          "path": "~/Library/Developer/Xcode/iOS DeviceSupport/*"
+        },
+        {
+          "path": "~/Library/Developer/Xcode/watchOS DeviceSupport/*"
+        },
+        {
+          "path": "~/Library/Developer/Xcode/tvOS DeviceSupport/*"
+        },
+        {
+          "path": "~/Library/Developer/Xcode/macOS DeviceSupport/*"
+        },
+        {
+          "path": "~/Library/Developer/Xcode/visionOS DeviceSupport/*"
+        }
       ]
     },
     {
@@ -141,7 +224,11 @@
       "detail": "App archives from past releases. Needed to symbolicate crash reports of those versions.",
       "risk": "caution",
       "autoSelect": false,
-      "targets": [{ "path": "~/Library/Developer/Xcode/Archives/*" }]
+      "targets": [
+        {
+          "path": "~/Library/Developer/Xcode/Archives/*"
+        }
+      ]
     },
     {
       "id": "dev-simulator-caches",
@@ -150,31 +237,63 @@
       "detail": "CoreSimulator caches and SwiftUI preview data.",
       "risk": "safe",
       "autoSelect": true,
+      "owners": [
+        "com.apple.dt.Xcode",
+        "com.apple.iphonesimulator"
+      ],
       "targets": [
-        { "path": "~/Library/Developer/CoreSimulator/Caches/*" },
-        { "path": "~/Library/Developer/Xcode/UserData/Previews/*" }
+        {
+          "path": "~/Library/Developer/CoreSimulator/Caches/*"
+        },
+        {
+          "path": "~/Library/Developer/Xcode/UserData/Previews/*"
+        }
       ]
     },
     {
       "id": "dev-package-caches",
       "section": "Developer tools",
       "title": "Package manager caches",
-      "detail": "Downloaded packages kept by Homebrew, npm, Yarn, pip, Poetry, Bun, Deno, CocoaPods, Cargo and Go. They are downloaded again when needed.",
-      "risk": "safe",
-      "autoSelect": true,
+      "detail": "Downloaded packages kept by Homebrew, npm, Yarn, pip, Poetry, Bun, Deno, CocoaPods, Cargo and Go. Safe to remove, but they are downloaded again the next time a project needs them.",
+      "risk": "review",
+      "autoSelect": false,
       "targets": [
-        { "path": "~/Library/Caches/Homebrew/*" },
-        { "path": "~/.npm/_cacache" },
-        { "path": "~/.npm/_logs" },
-        { "path": "~/Library/Caches/Yarn" },
-        { "path": "~/.yarn/berry/cache" },
-        { "path": "~/Library/Caches/pip" },
-        { "path": "~/Library/Caches/pypoetry" },
-        { "path": "~/.bun/install/cache" },
-        { "path": "~/Library/Caches/deno" },
-        { "path": "~/Library/Caches/CocoaPods" },
-        { "path": "~/.cargo/registry/cache" },
-        { "path": "~/Library/Caches/go-build" }
+        {
+          "path": "~/Library/Caches/Homebrew/*"
+        },
+        {
+          "path": "~/.npm/_cacache"
+        },
+        {
+          "path": "~/.npm/_logs"
+        },
+        {
+          "path": "~/Library/Caches/Yarn"
+        },
+        {
+          "path": "~/.yarn/berry/cache"
+        },
+        {
+          "path": "~/Library/Caches/pip"
+        },
+        {
+          "path": "~/Library/Caches/pypoetry"
+        },
+        {
+          "path": "~/.bun/install/cache"
+        },
+        {
+          "path": "~/Library/Caches/deno"
+        },
+        {
+          "path": "~/Library/Caches/CocoaPods"
+        },
+        {
+          "path": "~/.cargo/registry/cache"
+        },
+        {
+          "path": "~/Library/Caches/go-build"
+        }
       ]
     },
     {
@@ -185,12 +304,24 @@
       "risk": "review",
       "autoSelect": false,
       "targets": [
-        { "path": "~/Library/pnpm/store" },
-        { "path": "~/.cache/uv" },
-        { "path": "~/go/pkg/mod" },
-        { "path": "~/.gradle/caches" },
-        { "path": "~/.m2/repository" },
-        { "path": "~/.cargo/git/checkouts" }
+        {
+          "path": "~/Library/pnpm/store"
+        },
+        {
+          "path": "~/.cache/uv"
+        },
+        {
+          "path": "~/go/pkg/mod"
+        },
+        {
+          "path": "~/.gradle/caches"
+        },
+        {
+          "path": "~/.m2/repository"
+        },
+        {
+          "path": "~/.cargo/git/checkouts"
+        }
       ]
     },
     {
@@ -198,32 +329,72 @@
       "section": "Developer tools",
       "title": "Editor caches",
       "detail": "Caches and logs of Visual Studio Code and JetBrains IDEs.",
-      "risk": "safe",
-      "autoSelect": true,
+      "risk": "review",
+      "autoSelect": false,
+      "owners": [
+        "com.microsoft.VSCode",
+        "com.jetbrains"
+      ],
       "targets": [
-        { "path": "~/Library/Application Support/Code/Cache" },
-        { "path": "~/Library/Application Support/Code/CachedData" },
-        { "path": "~/Library/Application Support/Code/CachedExtensionVSIXs" },
-        { "path": "~/Library/Application Support/Code/Code Cache" },
-        { "path": "~/Library/Application Support/Code/GPUCache" },
-        { "path": "~/Library/Application Support/Code/logs" },
-        { "path": "~/Library/Caches/JetBrains/*" }
+        {
+          "path": "~/Library/Application Support/Code/Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Code/CachedData"
+        },
+        {
+          "path": "~/Library/Application Support/Code/CachedExtensionVSIXs"
+        },
+        {
+          "path": "~/Library/Application Support/Code/Code Cache"
+        },
+        {
+          "path": "~/Library/Application Support/Code/GPUCache"
+        },
+        {
+          "path": "~/Library/Application Support/Code/logs"
+        },
+        {
+          "path": "~/Library/Caches/JetBrains/*"
+        }
       ]
     },
     {
       "id": "system-user-caches",
       "section": "System",
       "title": "App caches",
-      "detail": "Files apps keep to load faster. Apps recreate them as needed.",
+      "detail": "Files apps keep to load faster. Apps recreate them as needed. Caches of iCloud, sync clients (Dropbox, OneDrive, Google Drive) and system services that hold state are excluded.",
       "risk": "safe",
       "autoSelect": true,
       "targets": [
         {
           "path": "~/Library/Caches/*",
           "exclude": [
-            "com.apple.nsurlsessiond", "com.apple.bird", "CloudKit", "com.apple.CloudKit*",
-            "com.apple.akd", "FamilyCircle", "com.apple.containermanagerd", "com.apple.ap.adprivacyd",
-            "com.apple.HomeKit", "com.apple.findmy*", "io.github.guiboorges.limpo*"
+            "com.apple.nsurlsessiond",
+            "com.apple.bird",
+            "com.apple.cloudd",
+            "CloudKit",
+            "com.apple.CloudKit*",
+            "com.apple.icloud*",
+            "com.apple.iCloudHelper",
+            "com.apple.akd",
+            "com.apple.TrustedPeersHelper",
+            "FamilyCircle",
+            "com.apple.containermanagerd",
+            "com.apple.ap.adprivacyd",
+            "com.apple.HomeKit",
+            "com.apple.homed",
+            "com.apple.findmy*",
+            "com.apple.passd",
+            "com.apple.ScreenTimeAgent",
+            "com.apple.Safari.SafeBrowsing",
+            "*OneDrive*",
+            "com.getdropbox*",
+            "com.dropbox*",
+            "*DriveFS*",
+            "com.google.drivefs*",
+            "com.box.desktop*",
+            "io.github.guiboorges.limpo*"
           ]
         }
       ]
@@ -236,7 +407,11 @@
       "risk": "safe",
       "autoSelect": true,
       "requiresFullDiskAccess": true,
-      "targets": [{ "path": "~/Library/Containers/*/Data/Library/Caches/*" }]
+      "targets": [
+        {
+          "path": "~/Library/Containers/*/Data/Library/Caches/*"
+        }
+      ]
     },
     {
       "id": "system-user-logs",
@@ -246,8 +421,15 @@
       "risk": "safe",
       "autoSelect": true,
       "targets": [
-        { "path": "~/Library/Logs/*", "exclude": ["DiagnosticReports"] },
-        { "path": "~/Library/Logs/DiagnosticReports/*" }
+        {
+          "path": "~/Library/Logs/*",
+          "exclude": [
+            "DiagnosticReports"
+          ]
+        },
+        {
+          "path": "~/Library/Logs/DiagnosticReports/*"
+        }
       ]
     },
     {
@@ -258,7 +440,11 @@
       "risk": "safe",
       "autoSelect": true,
       "requiresFullDiskAccess": true,
-      "targets": [{ "path": "~/Library/Containers/*/Data/Library/Logs/*" }]
+      "targets": [
+        {
+          "path": "~/Library/Containers/*/Data/Library/Logs/*"
+        }
+      ]
     },
     {
       "id": "system-mail-downloads",
@@ -268,7 +454,14 @@
       "risk": "review",
       "autoSelect": true,
       "requiresFullDiskAccess": true,
-      "targets": [{ "path": "~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads/*" }]
+      "owners": [
+        "com.apple.mail"
+      ],
+      "targets": [
+        {
+          "path": "~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads/*"
+        }
+      ]
     },
     {
       "id": "system-ios-updates",
@@ -278,8 +471,12 @@
       "risk": "safe",
       "autoSelect": true,
       "targets": [
-        { "path": "~/Library/iTunes/iPhone Software Updates/*.ipsw" },
-        { "path": "~/Library/iTunes/iPad Software Updates/*.ipsw" }
+        {
+          "path": "~/Library/iTunes/iPhone Software Updates/*.ipsw"
+        },
+        {
+          "path": "~/Library/iTunes/iPad Software Updates/*.ipsw"
+        }
       ]
     },
     {
@@ -290,7 +487,11 @@
       "risk": "caution",
       "autoSelect": false,
       "requiresFullDiskAccess": true,
-      "targets": [{ "path": "~/Library/Application Support/MobileSync/Backup/*" }]
+      "targets": [
+        {
+          "path": "~/Library/Application Support/MobileSync/Backup/*"
+        }
+      ]
     },
     {
       "id": "system-installers",
@@ -300,9 +501,15 @@
       "risk": "review",
       "autoSelect": false,
       "targets": [
-        { "path": "~/Downloads/*.dmg" },
-        { "path": "~/Downloads/*.pkg" },
-        { "path": "~/Downloads/*.mpkg" }
+        {
+          "path": "~/Downloads/*.dmg"
+        },
+        {
+          "path": "~/Downloads/*.pkg"
+        },
+        {
+          "path": "~/Downloads/*.mpkg"
+        }
       ]
     },
     {
@@ -312,7 +519,11 @@
       "detail": "Items already in your Trash. Emptying the Trash is always permanent.",
       "risk": "review",
       "autoSelect": false,
-      "targets": [{ "path": "~/.Trash/*" }]
+      "targets": [
+        {
+          "path": "~/.Trash/*"
+        }
+      ]
     }
   ]
 }

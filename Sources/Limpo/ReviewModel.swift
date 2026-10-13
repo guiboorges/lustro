@@ -2,6 +2,13 @@ import Foundation
 import LimpoCore
 import Observation
 
+struct AppConflict: Identifiable {
+    var id: String { app.bundleID }
+    let app: RunningApp
+    let items: [ScanItem]
+    var size: Int64 { items.reduce(0) { $0 + $1.size } }
+}
+
 /// Scan → review → remove workflow shared by Cleanup, Dev Purge and the Uninstaller.
 @MainActor @Observable
 final class ReviewModel {
@@ -119,6 +126,24 @@ final class ReviewModel {
 
     func selectedSize(of group: ScanGroup) -> Int64 {
         group.items.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.size }
+    }
+
+    // MARK: - Running apps
+
+    /// Selected items that belong to apps that are currently open, grouped by app.
+    func runningConflicts(with running: [RunningApp]) -> [AppConflict] {
+        let ownership = AppOwnership()
+        var byApp: [String: (RunningApp, [ScanItem])] = [:]
+        for group in groups {
+            for item in group.items where selection.contains(item.id) {
+                for app in ownership.runningOwners(of: item.url, explicitOwners: group.owners, running: running) {
+                    byApp[app.bundleID, default: (app, [])].1.append(item)
+                }
+            }
+        }
+        return byApp.values
+            .map { AppConflict(app: $0.0, items: $0.1) }
+            .sorted { $0.app.name.localizedCaseInsensitiveCompare($1.app.name) == .orderedAscending }
     }
 
     private func progressHandler() -> ProgressHandler {

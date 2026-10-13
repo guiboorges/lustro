@@ -40,6 +40,8 @@ public struct JunkCategory: Codable, Sendable, Identifiable {
     public let minAgeHours: Double?
     /// Skipped unless the app has Full Disk Access (avoids a flood of macOS privacy prompts).
     public let requiresFullDiskAccess: Bool?
+    /// Bundle IDs of the apps these files belong to; their files are held back while they run.
+    public let owners: [String]?
     public let targets: [JunkTarget]
 }
 

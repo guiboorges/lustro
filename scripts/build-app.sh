@@ -11,10 +11,13 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app ]]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
+# Folders such as ~/Documents can tag build products with Finder metadata that codesign rejects.
+xattr -cr .build 2>/dev/null || true
 swift build -c release --arch arm64 --arch x86_64
 BIN_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
 rm -rf "$APP"
+xattr -cr "$BIN_DIR" 2>/dev/null || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Limpo" "$APP/Contents/MacOS/Limpo"
 # SwiftPM resource bundle (rules.json) must sit next to the executable's Resources.

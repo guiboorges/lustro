@@ -1,3 +1,4 @@
+import AppKit
 import LimpoCore
 import SwiftUI
 
@@ -263,6 +264,8 @@ struct ActionBar: View {
     var actionTitle: String?
     var onRemoved: (@MainActor ([ScanItem]) -> Void)?
     @State private var confirming = false
+    @State private var conflicts: [AppConflict] = []
+    @State private var quitting = false
 
     private var permanent: Bool { app.settings.removalMode == .permanent }
 
@@ -274,30 +277,84 @@ struct ActionBar: View {
             Text("\(model.selectedItems.count) of \(model.allItems.count) selected")
                 .foregroundStyle(.secondary)
             Spacer()
-            if model.phase == .removing {
+            if model.phase == .removing || quitting {
                 ProgressView(value: model.progressFraction ?? 0).frame(width: 120)
             }
             if app.settings.dryRun {
                 Label("Dry run", systemImage: "eye").font(.caption).foregroundStyle(.secondary)
             }
             Text(model.selectedSize.formattedBytes).font(.title3.monospacedDigit().weight(.semibold))
-            Button(actionTitle ?? (permanent ? "Delete…" : "Move to Trash…")) { confirming = true }
+            Button(actionTitle ?? (permanent ? "Delete…" : "Move to Trash…")) { start() }
                 .buttonStyle(.borderedProminent)
                 .tint(permanent ? .red : .accentColor)
                 .controlSize(.large)
-                .disabled(model.selection.isEmpty || model.phase == .removing)
+                .disabled(model.selection.isEmpty || model.phase == .removing || quitting)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {
-            Button(permanent ? "Delete Permanently" : "Move to Trash", role: permanent ? .destructive : nil) {
-                let remover = Remover(policy: app.settings.policy(extraAllowedRoots: extraAllowedRoots),
-                                      mode: app.settings.removalMode, dryRun: app.settings.dryRun)
-                model.remove(with: remover, onRemoved: onRemoved)
-            }
+            Button(permanent ? "Delete Permanently" : "Move to Trash", role: permanent ? .destructive : nil) { performRemoval() }
         } message: {
             Text(confirmMessage)
         }
+        .sheet(isPresented: Binding(get: { !conflicts.isEmpty }, set: { if !$0 { conflicts = [] } })) {
+            RunningAppsSheet(conflicts: conflicts,
+                             onQuit: { quitAndContinue() },
+                             onSkip: { skipAndContinue() },
+                             onCancel: { conflicts = [] })
+        }
+    }
+
+    /// Checks for open apps that own selected files before asking for confirmation.
+    private func start() {
+        let found = model.runningConflicts(with: Self.runningApps())
+        if found.isEmpty { confirming = true } else { conflicts = found }
+    }
+
+    private func skipAndContinue() {
+        for conflict in conflicts { model.selection.subtract(conflict.items.map(\.id)) }
+        conflicts = []
+        if !model.selection.isEmpty { confirming = true }
+    }
+
+    private func quitAndContinue() {
+        let pids = Set(conflicts.map(\.app.pid))
+        let targets = NSWorkspace.shared.runningApplications.filter { pids.contains($0.processIdentifier) }
+        let pending = conflicts
+        conflicts = []
+        quitting = true
+        targets.forEach { $0.terminate() }
+        Task { @MainActor in
+            // Give apps up to 10 seconds to save and quit; files of apps still open are skipped.
+            for _ in 0..<40 where !targets.allSatisfy(\.isTerminated) {
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            let stillOpen = Set(targets.filter { !$0.isTerminated }.map(\.processIdentifier))
+            for conflict in pending where stillOpen.contains(conflict.app.pid) {
+                model.selection.subtract(conflict.items.map(\.id))
+            }
+            quitting = false
+            if !model.selection.isEmpty { confirming = true }
+        }
+    }
+
+    private func performRemoval() {
+        let remover = Remover(policy: app.settings.policy(extraAllowedRoots: extraAllowedRoots),
+                              mode: app.settings.removalMode, dryRun: app.settings.dryRun)
+        model.remove(with: remover, onRemoved: onRemoved)
+    }
+
+    /// Apps the user can quit: regular Dock apps only. Helpers, menu-bar agents and system
+    /// processes are left out, and the Finder is never asked to quit.
+    static func runningApps() -> [RunningApp] {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.processIdentifier != getpid()
+                && $0.bundleIdentifier != "com.apple.finder" }
+            .compactMap { app in
+                app.bundleIdentifier.map {
+                    RunningApp(bundleID: $0, name: app.localizedName ?? $0, pid: app.processIdentifier)
+                }
+            }
     }
 
     private var confirmTitle: String {
@@ -309,6 +366,48 @@ struct ActionBar: View {
         return permanent
             ? "This cannot be undone. Items already in the Trash are always deleted permanently."
             : "You can restore items from the Trash until you empty it. Items already in the Trash are deleted permanently."
+    }
+}
+
+struct RunningAppsSheet: View {
+    let conflicts: [AppConflict]
+    let onQuit: () -> Void
+    let onSkip: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Some apps are open", systemImage: "exclamationmark.triangle.fill")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.orange)
+            Text("Removing files of an app while it runs can make it misbehave until it restarts. Quit these apps first, or leave their files for now.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 8) {
+                ForEach(conflicts) { conflict in
+                    HStack(spacing: 10) {
+                        if let icon = NSRunningApplication(processIdentifier: conflict.app.pid)?.icon {
+                            Image(nsImage: icon).resizable().frame(width: 24, height: 24)
+                        }
+                        Text(conflict.app.name)
+                        Spacer()
+                        Text("\(conflict.items.count) item\(conflict.items.count == 1 ? "" : "s") · \(conflict.size.formattedBytes)")
+                            .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(10)
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+            HStack {
+                Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Skip Their Files", action: onSkip)
+                Button("Quit Apps and Continue", action: onQuit)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
     }
 }
 

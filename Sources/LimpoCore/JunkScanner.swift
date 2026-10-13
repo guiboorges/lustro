@@ -41,7 +41,8 @@ public struct JunkScanner: Sendable {
                 groups.append(ScanGroup(
                     id: category.id, title: category.title, detail: category.detail,
                     section: category.section, risk: category.risk,
-                    autoSelect: category.autoSelect, items: items.sorted { $0.size > $1.size }
+                    autoSelect: category.autoSelect, owners: category.owners ?? [],
+                    items: items.sorted { $0.size > $1.size }
                 ))
             }
         }

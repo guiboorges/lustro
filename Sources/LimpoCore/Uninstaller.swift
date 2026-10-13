@@ -74,13 +74,13 @@ public struct Uninstaller: Sendable {
         var groups: [ScanGroup] = []
         if let bundle = DiskUsage.item(for: app.url) {
             groups.append(ScanGroup(id: "app", title: "Application", detail: app.url.path,
-                                    section: app.name, risk: .review, autoSelect: true, items: [bundle]))
+                                    section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID], items: [bundle]))
         }
         let leftovers = leftovers(bundleID: app.bundleID, name: app.name)
         if !leftovers.isEmpty {
             groups.append(ScanGroup(id: "leftovers", title: "Support files",
                                     detail: "Preferences, caches, containers and other files created by the app",
-                                    section: app.name, risk: .review, autoSelect: true, items: leftovers))
+                                    section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID], items: leftovers))
         }
         return groups
     }

@@ -48,17 +48,21 @@ public struct ScanGroup: Identifiable, Hashable, Sendable {
     public let risk: RiskLevel
     /// Whether items in this group start selected in the review list.
     public let autoSelect: Bool
+    /// Bundle IDs known to own every item in the group (in addition to per-path detection).
+    public let owners: [String]
     public var items: [ScanItem]
 
     public var totalSize: Int64 { items.reduce(0) { $0 + $1.size } }
 
-    public init(id: String, title: String, detail: String, section: String, risk: RiskLevel, autoSelect: Bool, items: [ScanItem]) {
+    public init(id: String, title: String, detail: String, section: String, risk: RiskLevel, autoSelect: Bool,
+                owners: [String] = [], items: [ScanItem]) {
         self.id = id
         self.title = title
         self.detail = detail
         self.section = section
         self.risk = risk
         self.autoSelect = autoSelect && risk != .caution
+        self.owners = owners
         self.items = items
     }
 }
