@@ -92,7 +92,7 @@ struct ReviewList: View {
             LazyVStack(spacing: 0) {
                 ForEach(model.sections, id: \.name) { section in
                     let total = section.groups.reduce(Int64(0)) { $0 + $1.totalSize }
-                    SectionHeader(title: LocalizedStringKey(section.name), detail: LocalizedStringKey(total.formattedBytes))
+                    SectionHeader(title: L(section.name), detail: total.formattedBytes)
                     ForEach(section.groups) { group in
                         GroupRow(model: model, group: group, activityDays: activityDays)
                         if model.expanded.contains(group.id) {
@@ -278,7 +278,7 @@ struct ActionBar: View {
     @Bindable var model: ReviewModel
     let module: String
     var extraAllowedRoots: [URL] = []
-    var actionTitle: String?
+    var actionTitle: LocalizedStringKey?
     var onRemoved: (@MainActor ([ScanItem]) -> Void)?
     @State private var confirming = false
     @State private var conflicts: [AppConflict] = []

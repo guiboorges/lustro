@@ -58,5 +58,8 @@ PLIST
 # prompt would let any program in your account sign itself as Lustro and inherit those permissions.
 # Releases can pass a Developer ID: SIGN_IDENTITY="Developer ID Application: …" scripts/build-app.sh
 xattr -cr "$APP" 2>/dev/null || true
-codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP"
+# Hardened runtime: macOS ignores DYLD_* variables and refuses unsigned libraries, so no other program can
+# load its code into Lustro and borrow the Full Disk Access granted to it.
+codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP"
+[[ "$(codesign -dv "$APP" 2>&1)" == *"flags="*"runtime"* ]] || { echo "error: $APP is not signed with the hardened runtime" >&2; exit 1; }
 echo "Built $APP ($VERSION)"

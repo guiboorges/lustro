@@ -57,14 +57,20 @@ public struct Remover: Sendable {
                 report.failures.append(RemovalFailure(url: item.url, reason: String(localized: "In use by \(names). Quit it and try again.")))
                 continue
             }
+            // Same path, different object: it was replaced after the scan, so it is not what the user reviewed.
+            if let expected = item.fileID, FileID(of: item.url) != expected {
+                report.failures.append(RemovalFailure(url: item.url, reason: String(localized: "Changed since it was scanned. Scan again.")))
+                continue
+            }
             if dryRun {
                 report.removed.append(item)
                 continue
             }
             do {
-                // Moving something that is already in the Trash to the Trash does nothing.
-                let alreadyInTrash = SafetyPolicy.isStrictlyInside(item.url.standardizedFileURL.path,
-                                                                   policy.home.appendingPathComponent(".Trash").path)
+                // Moving something that is already in the Trash to the Trash does nothing. Decided on the
+                // resolved location `validate` approved, so only the real ~/.Trash counts.
+                let alreadyInTrash = SafetyPolicy.isStrictlyInside(SafetyPolicy.key(policy.resolvedLocation(of: item.url).path),
+                                                                   SafetyPolicy.key(policy.home.appendingPathComponent(".Trash").path))
                 switch alreadyInTrash ? .permanent : mode {
                 case .trash:
                     var resulting: NSURL?

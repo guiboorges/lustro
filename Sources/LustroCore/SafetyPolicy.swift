@@ -11,6 +11,7 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
     case missing(String)
     case systemProtected(String)
     case cloudPlaceholder(String)
+    case redirected(String)
 
     public var description: String {
         switch self {
@@ -23,6 +24,7 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
         case .missing(let p): String(localized: "No longer exists: \(p)")
         case .systemProtected(let p): String(localized: "Protected by macOS (SIP, restricted or locked): \(p)")
         case .cloudPlaceholder(let p): String(localized: "Only in iCloud, not on this Mac: \(p)")
+        case .redirected(let p): String(localized: "Reached through a link that points somewhere else: \(p)")
         }
     }
 }
@@ -35,6 +37,15 @@ public struct SafetyPolicy: Sendable {
     /// Extra roots allowed for this operation (e.g. `/Applications` for the uninstaller).
     public let extraAllowedRoots: [URL]
     public let ignoredPaths: [URL]
+    /// Each allowed root as the caller wrote it and as it resolves, in `key` form.
+    private let roots: [Root]
+
+    struct Root: Sendable {
+        let lexical: String
+        let real: String
+        /// Shared folders where only the current user's own files may go.
+        let ownedOnly: Bool
+    }
 
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                 extraAllowedRoots: [URL] = [],
@@ -42,10 +53,25 @@ public struct SafetyPolicy: Sendable {
         self.home = home.standardizedFileURL.resolvingSymlinksInPath()
         self.extraAllowedRoots = extraAllowedRoots.map { $0.standardizedFileURL.resolvingSymlinksInPath() }
         self.ignoredPaths = ignoredPaths.map { $0.standardizedFileURL.resolvingSymlinksInPath() }
+        let given = ([home] + extraAllowedRoots).map(\.standardizedFileURL)
+        roots = given.map { Root(lexical: Self.key($0.path), real: Self.key($0.resolvingSymlinksInPath().path), ownedOnly: false) }
+            + Self.userOwnedTempRoots.map { Root(lexical: Self.key($0), real: Self.key($0), ownedOnly: true) }
     }
 
     /// Shared temporary directories where only files owned by the current user may be removed.
     static let userOwnedTempRoots = ["/private/tmp", "/private/var/tmp"]
+
+    /// The form paths are compared in. APFS ignores case and Unicode normalisation by default, and
+    /// Foundation drops the `/private` prefix when it resolves `/private/var` or `/private/tmp`,
+    /// so `~/Library/Application Support/LUSTRO` must count as the protected `…/Lustro`.
+    static func key(_ path: String) -> String {
+        var p = path.precomposedStringWithCanonicalMapping.lowercased()
+        for alias in ["/private/var", "/private/tmp", "/private/etc"] where p == alias || p.hasPrefix(alias + "/") {
+            p.removeFirst("/private".count)
+            break
+        }
+        return p
+    }
 
     /// Paths that are never removed themselves, though their contents may be.
     var protectedExactPaths: Set<String> {
@@ -88,14 +114,18 @@ public struct SafetyPolicy: Sendable {
         // but a symlinked parent could redirect us into a protected location.
         let parentReal = standardized.deletingLastPathComponent().resolvingSymlinksInPath()
         let real = parentReal.appendingPathComponent(standardized.lastPathComponent)
+        let lexicalKey = Self.key(standardized.path)
+        let realKey = Self.key(real.path)
 
-        for candidate in Set([standardized.path, real.path]) {
-            if protectedExactPaths.contains(candidate) { throw .protectedPath(candidate) }
-            if let prefix = deniedPrefixes.first(where: { Self.isSameOrInside(candidate, $0) }) {
-                throw .insideDeniedLocation(prefix)
+        let protected = Set(protectedExactPaths.map(Self.key))
+        let denied = deniedPrefixes.map(Self.key)
+        for candidate in Set([lexicalKey, realKey]) {
+            if protected.contains(candidate) { throw .protectedPath(candidate == realKey ? real.path : standardized.path) }
+            if let index = denied.firstIndex(where: { Self.isSameOrInside(candidate, $0) }) {
+                throw .insideDeniedLocation(deniedPrefixes[index])
             }
-            if ignoredPaths.contains(where: { Self.isSameOrInside(candidate, $0.path) }) {
-                throw .ignoredByUser(candidate)
+            if ignoredPaths.contains(where: { Self.isSameOrInside(candidate, Self.key($0.path)) }) {
+                throw .ignoredByUser(standardized.path)
             }
         }
 
@@ -107,15 +137,23 @@ public struct SafetyPolicy: Sendable {
 
         try checkFileFlags(real)
 
-        let allowedRoots = [home] + extraAllowedRoots
-        if allowedRoots.contains(where: { Self.isStrictlyInside(real.path, $0.path) }) {
-            return
-        }
-        if Self.userOwnedTempRoots.contains(where: { Self.isStrictlyInside(real.path, $0) }) {
-            guard isOwnedByCurrentUser(real) else { throw .notOwnedByUser(real.path) }
-            return
+        // The path must sit inside an allowed root as written, and resolve to the same place inside it.
+        // A symlink anywhere between the root and the item (a cache folder swapped for a link to
+        // ~/Documents, a symlinked ~/.Trash…) would make a harmless-looking path act on other data.
+        for root in roots {
+            for prefix in Set([root.lexical, root.real]) where Self.isStrictlyInside(lexicalKey, prefix) {
+                guard realKey == root.real + lexicalKey.dropFirst(prefix.count) else { throw .redirected(standardized.path) }
+                if root.ownedOnly, !isOwnedByCurrentUser(real) { throw .notOwnedByUser(real.path) }
+                return
+            }
         }
         throw .outsideAllowedRoots(real.path)
+    }
+
+    /// Where `url` really is once its parent folders are resolved, as `validate` sees it.
+    public func resolvedLocation(of url: URL) -> URL {
+        let standardized = url.standardizedFileURL
+        return standardized.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(standardized.lastPathComponent)
     }
 
     public func isAllowed(_ url: URL) -> Bool {

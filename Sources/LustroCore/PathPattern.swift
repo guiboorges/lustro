@@ -15,6 +15,8 @@ public enum PathPattern {
         guard path.hasPrefix("/") else { return [] }
 
         let segments = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        // Patterns name places; `..` would let one climb out of the folder it names.
+        guard !segments.contains(where: { $0 == "." || $0 == ".." }) else { return [] }
         var current: [URL] = [URL(fileURLWithPath: "/")]
         for segment in segments {
             var next: [URL] = []

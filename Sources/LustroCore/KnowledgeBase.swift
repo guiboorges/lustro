@@ -85,7 +85,7 @@ extension PathPattern {
         let patternParts = expanded.split(separator: "/").map(String.init)
         let pathParts = path.split(separator: "/").map(String.init)
         guard patternParts.count > pathParts.count else { return false }
-        return zip(patternParts, pathParts).allSatisfy { hasWildcard($0) ? matches($1, $0) : $0 == $1 }
+        return zip(patternParts, pathParts).allSatisfy(segmentMatches)
     }
 
     /// True when `path` is a match of `pattern` or lies inside one. Matches segment by segment, so
@@ -96,6 +96,12 @@ extension PathPattern {
         let patternParts = expanded.split(separator: "/").map(String.init)
         let pathParts = path.split(separator: "/").map(String.init)
         guard pathParts.count >= patternParts.count else { return false }
-        return zip(patternParts, pathParts).allSatisfy { hasWildcard($0) ? matches($1, $0) : $0 == $1 }
+        return zip(patternParts, pathParts).allSatisfy(segmentMatches)
+    }
+
+    /// Compares one segment the way APFS does by default: ignoring case and Unicode normalisation.
+    static func segmentMatches(_ pattern: String, _ name: String) -> Bool {
+        let p = pattern.precomposedStringWithCanonicalMapping, n = name.precomposedStringWithCanonicalMapping
+        return hasWildcard(p) ? fnmatch(p, n, FNM_CASEFOLD) == 0 : p.caseInsensitiveCompare(n) == .orderedSame
     }
 }

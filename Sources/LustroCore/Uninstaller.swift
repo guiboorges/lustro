@@ -15,6 +15,10 @@ public struct InstalledApp: Identifiable, Hashable, Sendable {
 /// Leftovers are matched only by exact bundle identifier (or `bundleID.` prefix for
 /// helpers and extensions) and, in a few name-keyed folders, by the exact app name.
 /// No fuzzy matching: a missed leftover is better than deleting another app's data.
+///
+/// The identifier and name come from the app's own Info.plist, which anyone can write, so they are
+/// treated as untrusted: they must be a single path component, prefix matching needs a full
+/// reverse-DNS identifier, and every match must sit directly in the folder it was looked up in.
 public struct Uninstaller: Sendable {
     public let home: URL
     public let searchRoots: [URL]
@@ -31,9 +35,27 @@ public struct Uninstaller: Sendable {
         self.policy = SafetyPolicy(home: home, extraAllowedRoots: self.searchRoots, ignoredPaths: ignoredPaths)
     }
 
-    /// Bundle identifiers that are never offered for removal.
+    /// Bundle identifiers that are never offered for removal. Compared without case, like the file system.
     static func isProtectedBundle(_ id: String) -> Bool {
-        id.hasPrefix("com.apple.") || id == Bundle.main.bundleIdentifier
+        let id = id.lowercased()
+        return id == "com.apple" || id.hasPrefix("com.apple.") || id == Bundle.main.bundleIdentifier?.lowercased()
+    }
+
+    /// A value from Info.plist that is safe to use as one path component.
+    static func isSafeComponent(_ s: String) -> Bool {
+        !s.isEmpty && s != "." && s != ".." && !s.contains("/") && !s.contains(":") && !s.contains("\0")
+    }
+
+    /// Letters, digits, dots and hyphens, the characters bundle identifiers are made of.
+    static func isWellFormedBundleID(_ id: String) -> Bool {
+        isSafeComponent(id) && id.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_") }
+    }
+
+    /// `com.vendor.app` or longer. Shorter identifiers (`com`, `com.google`) are vendor prefixes:
+    /// matching `<id>.*` with them would sweep up other apps' files, so they only match exactly.
+    static func allowsPrefixMatching(_ id: String) -> Bool {
+        let parts = id.split(separator: ".", omittingEmptySubsequences: false)
+        return parts.count >= 3 && !parts.contains { $0.isEmpty }
     }
 
     public func installedApps(measureSizes: Bool = true) -> [InstalledApp] {
@@ -80,7 +102,8 @@ public struct Uninstaller: Sendable {
                                     section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID],
                                     icon: "shippingbox", tint: "pink", items: [bundle]))
         }
-        let leftovers = leftovers(bundleID: app.bundleID, name: app.name)
+        let others = installedApps(measureSizes: false).map(\.bundleID).filter { $0 != app.bundleID }
+        let leftovers = leftovers(bundleID: app.bundleID, name: app.name, otherBundleIDs: others)
         // Data the knowledge base protects (profiles, vaults, unsynced files) is offered separately and never preselected.
         let (support, data) = (leftovers.filter { knowledgeBase.protectingApp(for: $0.url, home: home) == nil },
                                leftovers.filter { knowledgeBase.protectingApp(for: $0.url, home: home) != nil })
@@ -117,47 +140,65 @@ public struct Uninstaller: Sendable {
             .filter { policy.isAllowed($0) && seen.insert($0.standardizedFileURL.path).inserted }
     }
 
-    /// Files in `~/Library` that belong to `bundleID`.
-    public func leftovers(bundleID: String, name: String) -> [ScanItem] {
+    /// Files in `~/Library` that belong to `bundleID`. `otherBundleIDs` are the other installed apps: a
+    /// prefix match that belongs to one of them (`com.vendor.app.beta` when removing `com.vendor.app`) is left alone.
+    public func leftovers(bundleID: String, name: String, otherBundleIDs: [String] = []) -> [ScanItem] {
+        guard Self.isWellFormedBundleID(bundleID) else { return [] }
         let lib = home.appendingPathComponent("Library")
-        let id = bundleID
-        var urls: [URL] = []
+        let prefixMatching = Self.allowsPrefixMatching(bundleID)
+        var found: [(url: URL, folder: URL, prefix: Bool)] = []
 
-        func add(_ relative: String) {
-            urls += PathPattern.expand(lib.appendingPathComponent(relative).path, home: home)
+        /// Looks for `leaf` directly inside `~/Library/<folder>`.
+        func add(_ folder: String, _ leaf: String, prefix: Bool = false) {
+            guard !prefix || prefixMatching else { return }
+            let parent = lib.appendingPathComponent(folder)
+            found += PathPattern.expand(parent.appendingPathComponent(leaf).path, home: home).map { ($0, parent, prefix) }
         }
         func escaped(_ s: String) -> String {
             s.replacingOccurrences(of: "[", with: "[[]").replacingOccurrences(of: "*", with: "[*]").replacingOccurrences(of: "?", with: "[?]")
         }
-        let e = escaped(id)
-        let n = escaped(name)
+        let e = escaped(bundleID)
 
         // Keyed by bundle identifier.
         for folder in ["Application Support", "Caches", "HTTPStorages", "WebKit", "Containers", "Application Scripts", "Logs"] {
-            add("\(folder)/\(e)")
-            add("\(folder)/\(e).*")
+            add(folder, e)
+            add(folder, "\(e).*", prefix: true)
         }
-        add("Preferences/\(e).plist")
-        add("Preferences/\(e).*.plist")
-        add("Preferences/ByHost/\(e).*.plist")
-        add("Saved Application State/\(e).savedState")
-        add("HTTPStorages/\(e).binarycookies")
-        add("Cookies/\(e).binarycookies")
-        add("LaunchAgents/\(e).plist")
-        add("LaunchAgents/\(e).*.plist")
-        add("Group Containers/*.\(e)")
-        add("Group Containers/*.\(e).*")
+        add("Preferences", "\(e).plist")
+        add("Preferences", "\(e).*.plist", prefix: true)
+        add("Preferences/ByHost", "\(e).*.plist", prefix: true)
+        add("Saved Application State", "\(e).savedState")
+        add("HTTPStorages", "\(e).binarycookies")
+        add("Cookies", "\(e).binarycookies")
+        add("LaunchAgents", "\(e).plist")
+        add("LaunchAgents", "\(e).*.plist", prefix: true)
+        add("Group Containers", "*.\(e)", prefix: true)
+        add("Group Containers", "*.\(e).*", prefix: true)
 
         // Keyed by app name, only in folders where apps conventionally use their name.
-        if name.count >= 3 {
+        if name.count >= 3, Self.isSafeComponent(name) {
             for folder in ["Application Support", "Caches", "Logs"] {
-                add("\(folder)/\(n)")
+                add(folder, escaped(name))
             }
         }
 
+        let id = bundleID.lowercased()
+        let extending = otherBundleIDs.map { $0.lowercased() }.filter { $0.hasPrefix(id + ".") }
+        func belongsToAnotherApp(_ leaf: String) -> Bool {
+            let leaf = leaf.lowercased()
+            return extending.contains { leaf == $0 || leaf.hasPrefix($0 + ".") || leaf.hasSuffix("." + $0) || leaf.contains("." + $0 + ".") }
+        }
+
         var seen = Set<String>()
-        return urls
-            .filter { seen.insert($0.standardizedFileURL.path).inserted && policy.isAllowed($0) }
+        return found
+            .filter { match in
+                // Directly inside the folder it was looked up in, whatever the identifier or name said.
+                SafetyPolicy.key(match.url.standardizedFileURL.deletingLastPathComponent().path)
+                    == SafetyPolicy.key(match.folder.standardizedFileURL.path)
+            }
+            .filter { !$0.prefix || !belongsToAnotherApp($0.url.lastPathComponent) }
+            .map(\.url)
+            .filter { seen.insert(SafetyPolicy.key($0.standardizedFileURL.path)).inserted && policy.isAllowed($0) }
             .compactMap { DiskUsage.item(for: $0) }
             .sorted { $0.size > $1.size }
     }

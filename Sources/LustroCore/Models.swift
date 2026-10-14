@@ -31,19 +31,40 @@ public struct ScanItem: Identifiable, Hashable, Sendable {
     public let note: String?
     /// Why the scanner flagged it, e.g. "Found next to package.json". Shown in "Why is this safe?".
     public let evidence: String?
+    /// The file system object seen when the item was found. Removal refuses anything else at the same path.
+    public let fileID: FileID?
 
     public init(url: URL, size: Int64, isDirectory: Bool, lastModified: Date? = nil, note: String? = nil, evidence: String? = nil) {
+        self.init(url: url, size: size, isDirectory: isDirectory, lastModified: lastModified, note: note, evidence: evidence,
+                  fileID: FileID(of: url.standardizedFileURL))
+    }
+
+    private init(url: URL, size: Int64, isDirectory: Bool, lastModified: Date?, note: String?, evidence: String?, fileID: FileID?) {
         self.url = url.standardizedFileURL
         self.size = size
         self.isDirectory = isDirectory
         self.lastModified = lastModified
         self.note = note
         self.evidence = evidence
+        self.fileID = fileID
     }
 
     public func with(note: String? = nil, evidence: String? = nil) -> ScanItem {
         ScanItem(url: url, size: size, isDirectory: isDirectory, lastModified: lastModified,
-                 note: note ?? self.note, evidence: evidence ?? self.evidence)
+                 note: note ?? self.note, evidence: evidence ?? self.evidence, fileID: fileID)
+    }
+}
+
+/// Device and inode of a file system object, read without following a final symlink.
+public struct FileID: Hashable, Sendable {
+    public let device: Int64
+    public let inode: UInt64
+
+    public init?(of url: URL) {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return nil }
+        device = Int64(info.st_dev)
+        inode = UInt64(info.st_ino)
     }
 }
 

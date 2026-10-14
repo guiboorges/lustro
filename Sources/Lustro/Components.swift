@@ -163,6 +163,8 @@ struct KPICard: View {
     let unit: String
     let detail: LocalizedStringKey
     var bars: [Double]? = nil
+    /// Shown as is instead of `detail`, for text that comes from data (a file name) rather than from code.
+    var verbatimDetail: String? = nil
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 12) {
@@ -172,7 +174,8 @@ struct KPICard: View {
                     Text(value).font(.lMetric).foregroundStyle(Theme.textPrimary).monospacedDigit()
                     Text(unit).font(.lTitle3).foregroundStyle(Theme.textSecondary)
                 }
-                Text(detail).font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                Group { if let verbatimDetail { Text(verbatim: verbatimDetail) } else { Text(detail) } }
+                    .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
             }
             Spacer(minLength: 0)
             if let bars, let maxValue = bars.max(), maxValue > 0 {
@@ -284,15 +287,16 @@ struct PanelHeader<Actions: View>: View {
     }
 }
 
-/// "AI TOOLS  0.9 GB" list section header.
+/// "AI TOOLS  0.9 GB" list section header. Titles can be app names from a third-party Info.plist, so they
+/// are shown as typed: never as Markdown, which would turn `[text](url)` into a link.
 struct SectionHeader: View {
-    let title: LocalizedStringKey
-    let detail: LocalizedStringKey?
+    let title: String
+    let detail: String?
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(title).overline()
-            if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.textTertiary) }
+            Text(verbatim: title).overline()
+            if let detail { Text(verbatim: detail).font(.lCaption).foregroundStyle(Theme.textTertiary) }
             Spacer()
         }
         .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)

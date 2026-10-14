@@ -65,7 +65,7 @@ struct HistoryView: View {
                     detail: thisMonth.count == 1 ? "across 1 run" : "across \(thisMonth.count) runs")
             KPICard(label: "Restorable now", value: number(restorable), unit: unit(restorable), detail: "still in the Trash")
             KPICard(label: "Put back", value: "\(putBack.count)", unit: putBack.count == 1 ? String(localized: "item") : String(localized: "items"),
-                    detail: putBack.first.map { LocalizedStringKey(URL(fileURLWithPath: $0.originalPath).lastPathComponent) } ?? "nothing yet")
+                    detail: "nothing yet", verbatimDetail: putBack.first.map { URL(fileURLWithPath: $0.originalPath).lastPathComponent })
         }
     }
 
