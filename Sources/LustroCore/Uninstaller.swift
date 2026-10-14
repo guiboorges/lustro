@@ -161,11 +161,12 @@ public struct Uninstaller: Sendable {
         let prefixMatching = Self.allowsPrefixMatching(bundleID)
         var found: [(url: URL, folder: URL, prefix: Bool)] = []
 
-        /// Looks for `leaf` directly inside `~/Library/<folder>`.
-        func add(_ folder: String, _ leaf: String, prefix: Bool = false) {
+        /// Looks for `leaf` directly inside `~/Library/<folder>`. `keep` can reject some of the matches by name.
+        func add(_ folder: String, _ leaf: String, prefix: Bool = false, keep: (String) -> Bool = { _ in true }) {
             guard !prefix || prefixMatching else { return }
             let parent = lib.appendingPathComponent(folder)
-            found += PathPattern.expand(parent.appendingPathComponent(leaf).path, home: home).map { ($0, parent, prefix) }
+            found += PathPattern.expand(parent.appendingPathComponent(leaf).path, home: home)
+                .filter { keep($0.lastPathComponent) }.map { ($0, parent, prefix) }
         }
         func escaped(_ s: String) -> String {
             s.replacingOccurrences(of: "[", with: "[[]").replacingOccurrences(of: "*", with: "[*]").replacingOccurrences(of: "?", with: "[?]")
@@ -187,6 +188,9 @@ public struct Uninstaller: Sendable {
         add("LaunchAgents", "\(e).*.plist", prefix: true)
         add("Group Containers", "*.\(e)", prefix: true)
         add("Group Containers", "*.\(e).*", prefix: true)
+        // Helpers signed by a team can get a container named after the team: "ABCDE12345.com.vendor.app.Helper".
+        add("Containers", "*.\(e)", prefix: true, keep: AppOwnership.startsWithTeamID)
+        add("Containers", "*.\(e).*", prefix: true, keep: AppOwnership.startsWithTeamID)
 
         // Keyed by app name, only in folders where apps conventionally use their name.
         if name.count >= 3, Self.isSafeComponent(name) {

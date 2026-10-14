@@ -227,6 +227,21 @@ import Testing
         #expect(support.items.contains { $0.url.lastPathComponent == "com.example.victim" })
     }
 
+    /// A helper's container can carry the team ID in front ("S8EX82NJP6.com.macpaw.CleanMyMac-mas.HealthMonitor").
+    /// Only a real team ID counts as that prefix.
+    @Test func teamPrefixedContainersNeedARealTeamID() throws {
+        let home = try FakeHome()
+        for leaf in ["S8EX82NJP6.com.example.app.HealthMonitor", "S8EX82NJP6.com.example.app",
+                     "group.com.example.app", "s8ex82njp6.com.example.app", "ABC.com.example.app", "S8EX82NJP6.com.example.application"] {
+            try home.file("Library/Containers/\(leaf)/Data/x")
+        }
+        let found = Set(Uninstaller(home: home.url, searchRoots: []).leftovers(bundleID: "com.example.app", name: "Example")
+            .map(\.url.lastPathComponent))
+        #expect(found == ["S8EX82NJP6.com.example.app.HealthMonitor", "S8EX82NJP6.com.example.app"])
+        #expect(AppOwnership.startsWithTeamID("S8EX82NJP6.com.example.app"))
+        #expect(!AppOwnership.startsWithTeamID("group.com.example.app"))
+    }
+
     // MARK: Apps that belong to root
 
     /// Finder (and the password dialog) is only for real app folders owned by root inside an applications folder.

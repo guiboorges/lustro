@@ -50,9 +50,9 @@ public struct AppOwnership: Sendable {
             guard path.hasPrefix(root) else { continue }
             let rest = path.dropFirst(root.count)
             var key = String(rest.split(separator: "/").first ?? "")
-            // Group containers are prefixed with a team ID: "ABCDE12345.com.example.app".
-            if folder == "Library/Group Containers", let dot = key.firstIndex(of: "."),
-               key[..<dot].count == 10, key[..<dot].allSatisfy({ $0.isUppercase || $0.isNumber }) {
+            // Group containers, and some helpers' containers, are prefixed with a team ID: "ABCDE12345.com.example.app".
+            if folder == "Library/Group Containers" || folder == "Library/Containers", Self.startsWithTeamID(key),
+               let dot = key.firstIndex(of: ".") {
                 key = String(key[key.index(after: dot)...])
             }
             for suffix in [".plist", ".savedState", ".binarycookies"] where key.hasSuffix(suffix) {
@@ -61,6 +61,13 @@ public struct AppOwnership: Sendable {
             return key.isEmpty ? nil : key
         }
         return nil
+    }
+
+    /// Whether `name` starts with a team ID (ten capital letters or digits) and a dot.
+    static func startsWithTeamID(_ name: String) -> Bool {
+        guard let dot = name.firstIndex(of: ".") else { return false }
+        let team = name[..<dot]
+        return team.count == 10 && team.allSatisfy { $0.isASCII && ($0.isUppercase || $0.isNumber) }
     }
 
     static func matches(key: String, app: RunningApp) -> Bool {
