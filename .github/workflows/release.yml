@@ -51,4 +51,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" Lustro.zip Lustro.zip.sha256 \
-            --repo "$GITHUB_REPOSITORY" --title "Lustro $GITHUB_REF_NAME" --generate-notes
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --latest --generate-notes

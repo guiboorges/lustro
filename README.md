@@ -2,6 +2,13 @@
 
 <h1 align="center">Lustro</h1>
 
+<p align="center">
+<a href="https://github.com/guiboorges/lustro/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/guiboorges/lustro/ci.yml?label=CI&logo=githubactions&labelColor=2B1A12&logoColor=white"></a>
+<a href="https://github.com/guiboorges/lustro/releases/latest/download/Lustro.zip"><img alt="Download" src="https://img.shields.io/github/v/release/guiboorges/lustro?label=Download&color=FF7722&logo=apple&labelColor=2B1A12&logoColor=white"></a>
+<a href="https://claude.com/claude-code"><img alt="Built with Claude" src="https://img.shields.io/badge/Built%20with-Claude-B7410E?logo=claude&labelColor=2B1A12&logoColor=white"></a>
+<a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/guiboorges/lustro?label=License&color=B7410E&logo=opensourceinitiative&labelColor=2B1A12&logoColor=white"></a>
+</p>
+
 <p align="center">A free, open-source Mac cleaner that shows you exactly what it removes.<br>
 Native SwiftUI · no network access · no telemetry · moves to Trash by default · light and dark · English and Portuguese.</p>
 
@@ -47,19 +54,20 @@ Cleaning tools delete things. Lustro is designed so that a mistake is hard to ma
 
 - **Trash by default.** Everything goes to the Trash unless you switch to permanent deletion in Settings.
 - **Review before removing.** Nothing is removed without a confirmation that shows the item count and size. Every item has a **Why?** button that lists the checks it passed (owner app, age, rule, protections), and can be revealed in Finder or ignored forever.
-- **Undo from History.** Every run is recorded on your Mac. Items still in the Trash can be put back where they were with one click.
+- **Undo from History.** Every run is recorded on your Mac. Items still in the Trash can be put back where they were with one click. History is a plain file other programs could edit, so an item is only moved out of the real Trash, and only to a place Lustro is allowed to clean.
 - **Open apps are respected.** Files of apps that are running are held back until you quit them (Lustro can quit and reopen them for you).
 - **Dry run mode** shows what would be removed without touching anything.
 - **Protected locations.** Your home folder, Documents, Desktop, `~/Library` itself, `/System`, `/usr` and similar folders are never removed. Keychains, SSH keys, Mail, Messages, Safari, Photos and iCloud Drive are never touched at any depth.
-- **Re-validated at removal time.** Each path is checked again right before removal. Symlinks are never followed, so a link can't redirect a removal outside the allowed folders. Locked, SIP-protected and iCloud-only files are skipped, never force-unlocked.
+- **Re-validated at removal time.** Each path is checked again right before removal, and refused if it changed since the scan or if it reaches through a link to somewhere else (a cache folder swapped for a link to Documents, for example). Paths are compared the way macOS does, ignoring upper and lower case. Locked, SIP-protected and iCloud-only files are skipped, never force-unlocked.
 - **Proof before purge.** Dev Purge only flags a folder when a project file proves what it is: `node_modules` needs a `package.json` beside it, and `target` needs `Cargo.toml`, `pom.xml` or `build.sbt`. A random folder called `build` in your notes is left alone.
 - **Active work is left alone.** Temporary files of AI tools touched in the last 24 hours are skipped, so running sessions aren't broken.
-- **Exact matching in the uninstaller.** Leftovers are matched by exact bundle identifier, never by fuzzy name guessing. Apple apps are not listed.
+- **Exact matching in the uninstaller.** Leftovers are matched by exact bundle identifier, never by fuzzy name guessing, and must sit directly in the folder they were looked up in. Short identifiers such as `com.google` only match exactly. Support files are preselected only for apps signed by an identified developer whose identifier no other installed app claims. Apple apps are not listed.
 - **Caution items are never preselected,** for example Xcode archives, iPhone backups and local AI models.
 - **Processes are asked, not killed.** Quitting a process sends it a normal quit request (apps get to ask about unsaved work); Force Quit is offered only if it doesn't respond within 10 seconds. macOS processes and other users' processes can't be quit from Lustro.
 - **Launch agents are switched off, not deleted.** Turning one off uses launchd's own disabled list, so it can be turned back on at any time. Only agents whose app is gone can be removed, and they go to the Trash and into History.
 - **Command lines are redacted, best effort.** Tokens, passwords, API keys and credentials in URLs are masked before anything is shown or copied. Not every secret can be recognised, so read a copied report before sharing it publicly.
 - **Tune-ups that change data ask first.** Removing local Time Machine snapshots (they are backups) and compacting Mail's index both need a confirmation. Mail's index is cloned before it's compacted and only discarded once the result passes SQLite's integrity check.
+- **Tamper-resistant build.** Releases use the hardened runtime, so no other program can load code into Lustro and borrow its permissions, and Lustro ignores its cleaning rules if its files no longer match the signature. Container stats are read from the Docker socket; Lustro never runs a `docker` program it finds on disk.
 - **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog; Lustro doesn't install a privileged helper.
 
 ## Privacy
@@ -70,12 +78,11 @@ Lustro makes **no network requests**. It has no analytics, no crash reporter, no
 
 ### Download
 
-1. Get `Lustro.zip` from [Releases](../../releases) and move `Lustro.app` to `/Applications`.
-2. Releases are not notarized by Apple yet, so macOS will block the first launch. Allow it once:
+1. Get `Lustro.zip` from [Releases](../../releases) and move `Lustro.app` to `/Applications`. The `.sha256` file next to it lets you check the download: `shasum -a 256 -c Lustro.zip.sha256`.
+2. Releases are not notarized by Apple yet, so macOS will block the first launch. Try to open it, then go to **System Settings → Privacy & Security** and click **Open Anyway**. If you prefer the terminal:
    ```sh
    xattr -dr com.apple.quarantine /Applications/Lustro.app
    ```
-   Alternatively, try to open it, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ### Build from source
 
@@ -122,7 +129,11 @@ scripts             app bundle and icon builders
 
 ## Disclaimer
 
-Lustro is an independent project and is not affiliated with any commercial Mac cleaner. Use it at your own risk; the defaults are conservative, but always review what you remove. Licensed under the [MIT License](LICENSE).
+Lustro is an independent project and is not affiliated with any commercial Mac cleaner. Use it at your own risk; the defaults are conservative, but always review what you remove.
+
+## License
+
+[MIT](LICENSE) © 2026 Guilherme Borges
 
 ---
 
@@ -146,6 +157,6 @@ Lustro is an independent project and is not affiliated with any commercial Mac c
 
 **Privacidade:** zero pedidos de rede, sem analytics nem configuração remota.
 
-**Instalar:** descarrega `Lustro.zip` em [Releases](../../releases). Depois, corre `xattr -dr com.apple.quarantine /Applications/Lustro.app`, ou compila tu mesmo com `scripts/build-app.sh`.
+**Instalar:** descarrega `Lustro.zip` em [Releases](../../releases) e move a app para `/Applications`. Como ainda não é notarizada pela Apple, na primeira vez abre-a e, em **Definições do Sistema → Privacidade e Segurança**, carrega em **Abrir mesmo assim** (ou corre `xattr -dr com.apple.quarantine /Applications/Lustro.app`). Também podes compilar tu mesmo com `scripts/build-app.sh`.
 
 **Contribuir:** as regras de limpeza estão em `rules.json`. Vê o [CONTRIBUTING.md](CONTRIBUTING.md).
