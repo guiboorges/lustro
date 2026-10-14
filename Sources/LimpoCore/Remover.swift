@@ -16,6 +16,8 @@ public struct RemovalFailure: Sendable, Identifiable {
 public struct RemovalReport: Sendable {
     public internal(set) var removed: [ScanItem] = []
     public internal(set) var failures: [RemovalFailure] = []
+    /// Where each removed item ended up in the Trash, keyed by `ScanItem.id`.
+    public internal(set) var trashLocations: [String: URL] = [:]
     public let dryRun: Bool
     public let mode: RemovalMode
 
@@ -56,7 +58,9 @@ public struct Remover: Sendable {
                                                                    policy.home.appendingPathComponent(".Trash").path)
                 switch alreadyInTrash ? .permanent : mode {
                 case .trash:
-                    try fileManager.trashItem(at: item.url, resultingItemURL: nil)
+                    var resulting: NSURL?
+                    try fileManager.trashItem(at: item.url, resultingItemURL: &resulting)
+                    if let resulting { report.trashLocations[item.id] = resulting as URL }
                 case .permanent:
                     try fileManager.removeItem(at: item.url)
                 }

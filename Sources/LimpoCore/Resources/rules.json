@@ -9,6 +9,8 @@
       "risk": "safe",
       "autoSelect": true,
       "minAgeHours": 24,
+      "icon": "terminal",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/.claude/debug/*"
@@ -35,6 +37,8 @@
       "risk": "review",
       "autoSelect": false,
       "minAgeHours": 24,
+      "icon": "terminal",
+      "tint": "teal",
       "targets": [
         {
           "path": "/private/tmp/claude-*"
@@ -51,6 +55,8 @@
       "owners": [
         "com.anthropic.claudefordesktop"
       ],
+      "icon": "bubble.left.and.text.bubble.right",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/Library/Application Support/Claude/Cache"
@@ -86,6 +92,8 @@
       "risk": "safe",
       "autoSelect": true,
       "minAgeHours": 24,
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/.codex/tmp/*"
@@ -106,6 +114,8 @@
       "risk": "safe",
       "autoSelect": true,
       "minAgeHours": 24,
+      "icon": "sparkle",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/.gemini/tmp/*"
@@ -122,6 +132,8 @@
       "owners": [
         "com.todesktop.230313mzl4w4u92"
       ],
+      "icon": "cursorarrow.rays",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/Library/Application Support/Cursor/Cache"
@@ -151,6 +163,8 @@
       "risk": "safe",
       "autoSelect": true,
       "minAgeHours": 24,
+      "icon": "terminal",
+      "tint": "teal",
       "targets": [
         {
           "path": "~/.local/share/opencode/log/*"
@@ -167,6 +181,8 @@
       "detail": "Models downloaded by Ollama and LM Studio. Removing them may break projects that use them; they must be downloaded again.",
       "risk": "caution",
       "autoSelect": false,
+      "icon": "cpu",
+      "tint": "purple",
       "targets": [
         {
           "path": "~/.ollama/models"
@@ -186,6 +202,8 @@
       "owners": [
         "com.apple.dt.Xcode"
       ],
+      "icon": "hammer",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Developer/Xcode/DerivedData/*"
@@ -199,6 +217,8 @@
       "detail": "Debug symbols copied from connected devices. Recreated the next time a device is connected.",
       "risk": "review",
       "autoSelect": false,
+      "icon": "iphone",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Developer/Xcode/iOS DeviceSupport/*"
@@ -224,6 +244,8 @@
       "detail": "App archives from past releases. Needed to symbolicate crash reports of those versions.",
       "risk": "caution",
       "autoSelect": false,
+      "icon": "archivebox",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Developer/Xcode/Archives/*"
@@ -241,6 +263,8 @@
         "com.apple.dt.Xcode",
         "com.apple.iphonesimulator"
       ],
+      "icon": "ipad.and.iphone",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Developer/CoreSimulator/Caches/*"
@@ -257,6 +281,8 @@
       "detail": "Downloaded packages kept by Homebrew, npm, Yarn, pip, Poetry, Bun, Deno, CocoaPods, Cargo and Go. Safe to remove, but they are downloaded again the next time a project needs them.",
       "risk": "review",
       "autoSelect": false,
+      "icon": "shippingbox",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Caches/Homebrew/*"
@@ -303,6 +329,8 @@
       "detail": "Global stores for pnpm, uv, Go modules, Gradle and Maven. Safe to remove, but every project downloads its dependencies again.",
       "risk": "review",
       "autoSelect": false,
+      "icon": "square.stack.3d.up",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/pnpm/store"
@@ -335,6 +363,8 @@
         "com.microsoft.VSCode",
         "com.jetbrains"
       ],
+      "icon": "curlybraces",
+      "tint": "orange",
       "targets": [
         {
           "path": "~/Library/Application Support/Code/Cache"
@@ -366,6 +396,8 @@
       "detail": "Files apps keep to load faster. Apps recreate them as needed. Caches of iCloud, sync clients (Dropbox, OneDrive, Google Drive) and system services that hold state are excluded.",
       "risk": "safe",
       "autoSelect": true,
+      "icon": "laptopcomputer",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/Caches/*",
@@ -407,6 +439,8 @@
       "risk": "safe",
       "autoSelect": true,
       "requiresFullDiskAccess": true,
+      "icon": "square.dashed",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/Containers/*/Data/Library/Caches/*"
@@ -420,6 +454,8 @@
       "detail": "Logs written by apps. Only useful when diagnosing a problem.",
       "risk": "safe",
       "autoSelect": true,
+      "icon": "doc.text",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/Logs/*",
@@ -440,6 +476,8 @@
       "risk": "safe",
       "autoSelect": true,
       "requiresFullDiskAccess": true,
+      "icon": "doc.text",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/Containers/*/Data/Library/Logs/*"
@@ -457,6 +495,8 @@
       "owners": [
         "com.apple.mail"
       ],
+      "icon": "envelope",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads/*"
@@ -470,6 +510,8 @@
       "detail": "Firmware files downloaded to update devices. Downloaded again if needed.",
       "risk": "safe",
       "autoSelect": true,
+      "icon": "arrow.down.circle",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Library/iTunes/iPhone Software Updates/*.ipsw"
@@ -483,10 +525,13 @@
       "id": "system-ios-backups",
       "section": "System",
       "title": "iPhone and iPad backups",
-      "detail": "Local device backups. Remove only backups of devices you no longer use or that are backed up elsewhere. Requires Full Disk Access.",
+      "detail": "Local device backups. The newest backup of each device is always kept; older ones are listed. Requires Full Disk Access.",
       "risk": "caution",
       "autoSelect": false,
       "requiresFullDiskAccess": true,
+      "keepNewestPerDevice": true,
+      "icon": "iphone",
+      "tint": "red",
       "targets": [
         {
           "path": "~/Library/Application Support/MobileSync/Backup/*"
@@ -500,6 +545,8 @@
       "detail": "Disk images and installer packages in your Downloads folder.",
       "risk": "review",
       "autoSelect": false,
+      "icon": "opticaldiscdrive",
+      "tint": "blue",
       "targets": [
         {
           "path": "~/Downloads/*.dmg"
@@ -519,6 +566,8 @@
       "detail": "Items already in your Trash. Emptying the Trash is always permanent.",
       "risk": "review",
       "autoSelect": false,
+      "icon": "trash",
+      "tint": "gray",
       "targets": [
         {
           "path": "~/.Trash/*"

@@ -57,3 +57,11 @@ LIMPO_SNAPSHOT=/tmp/shot.png LIMPO_MODULE=devPurge LIMPO_AUTOSCAN=1 build/Limpo.
 ```
 
 This renders the window to a PNG and quits. Check screenshots for personal paths before you share them.
+
+## Troubleshooting
+
+If `swift test` fails with `resource fork, Finder information, or similar detritus not allowed`, the project probably lives in a folder that Finder or iCloud tags with metadata, such as `~/Documents`. Build outside it:
+
+```sh
+swift test --scratch-path /tmp/limpo-build
+```

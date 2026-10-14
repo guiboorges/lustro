@@ -7,13 +7,15 @@ public struct JunkScanner: Sendable {
     public let now: Date
     public let hasFullDiskAccess: Bool
     public let disabledCategories: Set<String>
+    public let keepNewestBackup: Bool
 
     public init(catalog: RuleCatalog, policy: SafetyPolicy = SafetyPolicy(), hasFullDiskAccess: Bool = false,
-                disabledCategories: Set<String> = [], now: Date = Date()) {
+                disabledCategories: Set<String> = [], keepNewestBackup: Bool = true, now: Date = Date()) {
         self.catalog = catalog
         self.policy = policy
         self.hasFullDiskAccess = hasFullDiskAccess
         self.disabledCategories = disabledCategories
+        self.keepNewestBackup = keepNewestBackup
         self.now = now
     }
 
@@ -42,6 +44,7 @@ public struct JunkScanner: Sendable {
                     id: category.id, title: category.title, detail: category.detail,
                     section: category.section, risk: category.risk,
                     autoSelect: category.autoSelect, owners: category.owners ?? [],
+                    icon: category.icon, tint: category.tint,
                     items: items.sorted { $0.size > $1.size }
                 ))
             }
@@ -53,6 +56,7 @@ public struct JunkScanner: Sendable {
     func scan(_ category: JunkCategory, excluding claimed: [String] = []) -> (items: [ScanItem], candidates: [String]) {
         var seen = Set<String>()
         var urls: [URL] = []
+        var matchedBy: [String: String] = [:]
         for target in category.targets {
             for url in PathPattern.expand(target.path, home: policy.home) {
                 let name = url.lastPathComponent
@@ -61,6 +65,7 @@ public struct JunkScanner: Sendable {
                 if claimed.contains(where: { SafetyPolicy.isSameOrInside(path, $0) || SafetyPolicy.isStrictlyInside($0, path) }) { continue }
                 guard policy.isAllowed(url), seen.insert(path).inserted else { continue }
                 urls.append(url)
+                matchedBy[path] = target.path
             }
         }
         // Drop items nested inside another selected item so nothing is counted twice.
@@ -77,7 +82,11 @@ public struct JunkScanner: Sendable {
                 return nil
             }
             guard let item = DiskUsage.item(for: url), item.size > 0 else { return nil }
-            return item
+            let rule = matchedBy[url.standardizedFileURL.path].map { "Listed by rule \(category.id): \($0)" }
+            return item.with(evidence: rule)
+        }
+        if category.keepNewestPerDevice == true {
+            return (DeviceBackups.label(items, keepNewest: keepNewestBackup), Array(seen))
         }
         return (items, Array(seen))
     }

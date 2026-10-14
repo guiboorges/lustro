@@ -43,7 +43,7 @@ public struct AppOwnership: Sendable {
     }
 
     /// First path component below an owner-keyed Library folder, e.g. `com.google.Chrome` or `Firefox`.
-    func ownerKey(for url: URL) -> String? {
+    public func ownerKey(for url: URL) -> String? {
         let path = url.standardizedFileURL.path
         for folder in Self.ownerKeyedFolders {
             let root = home.appendingPathComponent(folder).path + "/"

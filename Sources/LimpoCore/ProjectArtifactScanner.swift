@@ -127,6 +127,9 @@ public struct ProjectArtifactScanner: Sendable {
                 section: ecosystems.isEmpty ? "Projects" : ecosystems,
                 risk: .safe,
                 autoSelect: inactive,
+                icon: "terminal",
+                tint: "orange",
+                lastActivity: project.lastActivity,
                 items: project.artifacts.sorted { $0.size > $1.size }
             )
         }
@@ -154,9 +157,9 @@ public struct ProjectArtifactScanner: Sendable {
                       v.isDirectory == true, v.isSymbolicLink != true else { continue }
                 let name = child.lastPathComponent
 
-                if let rule = matchingRule(name: name, artifact: child, siblings: siblingNames) {
+                if let (rule, evidence) = matchingRule(name: name, artifact: child, siblings: siblingNames) {
                     if policy.isAllowed(child), let item = DiskUsage.item(for: child, note: rule.ecosystem), item.size > 0 {
-                        found[dir.path, default: []].append(item)
+                        found[dir.path, default: []].append(item.with(evidence: evidence))
                     }
                     continue // never descend into an artifact
                 }
@@ -171,14 +174,20 @@ public struct ProjectArtifactScanner: Sendable {
         }
     }
 
-    func matchingRule(name: String, artifact: URL, siblings: [String]) -> ArtifactRule? {
+    /// The rule that proves `artifact` is regenerable, with a sentence saying what proved it.
+    func matchingRule(name: String, artifact: URL, siblings: [String]) -> (ArtifactRule, String)? {
         for rule in rules where PathPattern.matches(name, rule.name) {
-            let hasMarker = rule.siblingMarkers.contains { marker in siblings.contains { PathPattern.matches($0, marker) } }
-            if hasMarker { return rule }
+            for marker in rule.siblingMarkers {
+                if let sibling = siblings.first(where: { PathPattern.matches($0, marker) }) {
+                    return (rule, "Found next to \(sibling), so it belongs to a \(rule.ecosystem) project")
+                }
+            }
             if !rule.contains.isEmpty {
                 let inside = (try? FileManager.default.contentsOfDirectory(atPath: artifact.path)) ?? []
-                if rule.contains.contains(where: { pattern in inside.contains { PathPattern.matches($0, pattern) } }) {
-                    return rule
+                for pattern in rule.contains {
+                    if let hit = inside.first(where: { PathPattern.matches($0, pattern) }) {
+                        return (rule, "Contains \(hit), which marks a \(rule.ecosystem) cache")
+                    }
                 }
             }
         }
@@ -186,7 +195,7 @@ public struct ProjectArtifactScanner: Sendable {
         let tag = artifact.appendingPathComponent("CACHEDIR.TAG")
         if let head = try? FileHandle(forReadingFrom: tag).read(upToCount: 43),
            String(decoding: head, as: UTF8.self).hasPrefix("Signature: 8a477f597d28d172789f06886806bc55") {
-            return ArtifactRule(name, markers: [], ecosystem: "Cache (CACHEDIR.TAG)")
+            return (ArtifactRule(name, markers: [], ecosystem: "Cache (CACHEDIR.TAG)"), "Tagged as a cache with CACHEDIR.TAG")
         }
         return nil
     }

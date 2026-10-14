@@ -26,6 +26,9 @@ final class ReviewModel {
     private(set) var lastReport: RemovalReport?
     var selection = Set<String>()
     var expanded = Set<String>()
+    /// Optional view filter (e.g. Dev Purge "inactive only") and ordering.
+    var groupFilter: ((ScanGroup) -> Bool)?
+    var sortLargestFirst = false
 
     private var task: Task<Void, Never>?
 
@@ -33,19 +36,37 @@ final class ReviewModel {
     var totalSize: Int64 { groups.reduce(0) { $0 + $1.totalSize } }
     var selectedItems: [ScanItem] { allItems.filter { selection.contains($0.id) } }
     var selectedSize: Int64 { selectedItems.reduce(0) { $0 + $1.size } }
+    var visibleGroups: [ScanGroup] {
+        let filtered = groupFilter.map { groups.filter($0) } ?? groups
+        return sortLargestFirst ? filtered.sorted { $0.totalSize > $1.totalSize } : filtered
+    }
 
     /// Groups bucketed by section, keeping the scanner's order.
     var sections: [(name: String, groups: [ScanGroup])] {
         var order: [String] = []
         var buckets: [String: [ScanGroup]] = [:]
-        for group in groups {
+        for group in visibleGroups {
             if buckets[group.section] == nil { order.append(group.section) }
             buckets[group.section, default: []].append(group)
         }
         return order.map { ($0, buckets[$0] ?? []) }
     }
 
-    func scan(using scanner: @escaping @Sendable (@escaping ProgressHandler) async -> [ScanGroup]) {
+    /// Total and selected size per section, for the summary bar.
+    var sectionTotals: [(name: String, total: Int64, selected: Int64)] {
+        sections.map { section in
+            let items = section.groups.flatMap(\.items)
+            return (section.name, items.reduce(0) { $0 + $1.size },
+                    items.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.size })
+        }
+    }
+
+    func group(containing item: ScanItem) -> ScanGroup? {
+        groups.first { $0.items.contains { $0.id == item.id } }
+    }
+
+    func scan(preselection: PreselectionMode = .smart,
+              using scanner: @escaping @Sendable (@escaping ProgressHandler) async -> [ScanGroup]) {
         task?.cancel()
         phase = .scanning
         progressMessage = "Starting…"
@@ -56,13 +77,22 @@ final class ReviewModel {
             let result = await Task.detached(priority: .userInitiated) { await scanner(progress) }.value
             guard !Task.isCancelled else { return }
             groups = result
-            selection = Set(result.filter(\.autoSelect).flatMap(\.items).map(\.id))
+            applyPreselection(preselection)
             expanded = []
             phase = .reviewing
         }
     }
 
-    func remove(with remover: Remover, onRemoved: (@MainActor ([ScanItem]) -> Void)? = nil) {
+    func applyPreselection(_ mode: PreselectionMode) {
+        let chosen: [ScanGroup] = switch mode {
+        case .off: []
+        case .smart: groups.filter(\.autoSelect)
+        case .allSafe: groups.filter { $0.risk != .caution }
+        }
+        selection = Set(chosen.flatMap(\.items).map(\.id))
+    }
+
+    func remove(with remover: Remover, onFinished: (@MainActor (RemovalReport) -> Void)? = nil) {
         let items = selectedItems
         guard !items.isEmpty else { return }
         phase = .removing
@@ -81,9 +111,14 @@ final class ReviewModel {
                 }
                 selection.subtract(removed)
             }
-            onRemoved?(report.removed)
+            onFinished?(report)
             phase = .reviewing
         }
+    }
+
+    /// Rule (group) each selected item came from, for the removal history.
+    var ruleIDs: [String: String] {
+        Dictionary(groups.flatMap { g in g.items.map { ($0.id, g.id) } }, uniquingKeysWith: { a, _ in a })
     }
 
     func cancel() {
@@ -122,10 +157,6 @@ final class ReviewModel {
 
     func selectAll(_ on: Bool) {
         selection = on ? Set(allItems.map(\.id)) : []
-    }
-
-    func selectedSize(of group: ScanGroup) -> Int64 {
-        group.items.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.size }
     }
 
     // MARK: - Running apps

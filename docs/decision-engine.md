@@ -1,6 +1,6 @@
 # Decision engine: deciding what can be removed
 
-Status: **proposal**. This describes how Limpo should decide, for any file, whether it may be removed, whether it should be preselected, and why. It is informed by a behavioural study of how commercial cleaners make these decisions. No code, data or assets from them are used.
+Status: **Phase 1 implemented** (reasons + "Why?" UI, locked/SIP/iCloud guards, reopen quit apps, newest iPhone backup kept, preselection modes, removal history with restore). Phases 2–4 are proposals. This describes how Limpo should decide, for any file, whether it may be removed, whether it should be preselected, and why. It is informed by a behavioural study of how commercial cleaners make these decisions. No code, data or assets from them are used.
 
 ## Goals
 

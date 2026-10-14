@@ -17,16 +17,19 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 | **Dev Purge** | `node_modules`, `target`, `.venv`, `.next`, `build`, `DerivedData` and ~40 other regenerable folders inside your projects. Projects you haven't touched in 30 days are preselected. |
 | **Space Lens** | A treemap and sorted list of what takes up space in any folder. Browse in, select, remove. |
 | **Uninstaller** | Removes an app together with its preferences, caches, containers, saved state and launch agents. |
+| **History** | Every removal, with one-click restore for items still in the Trash. |
 
 ## Safety first
 
 Cleaning tools delete things. Limpo is designed so that a mistake is hard to make and easy to undo:
 
 - **Trash by default.** Everything goes to the Trash unless you switch to permanent deletion in Settings.
-- **Review before removing.** Nothing is removed without a confirmation that shows the item count and size. Every item can be inspected, revealed in Finder or ignored forever.
+- **Review before removing.** Nothing is removed without a confirmation that shows the item count and size. Every item has a **Why?** button that lists the checks it passed (owner app, age, rule, protections), and can be revealed in Finder or ignored forever.
+- **Undo from History.** Every run is recorded on your Mac. Items still in the Trash can be put back where they were with one click.
+- **Open apps are respected.** Files of apps that are running are held back until you quit them (Limpo can quit and reopen them for you).
 - **Dry run mode** shows what would be removed without touching anything.
 - **Protected locations.** Your home folder, Documents, Desktop, `~/Library` itself, `/System`, `/usr` and similar folders are never removed. Keychains, SSH keys, Mail, Messages, Safari, Photos and iCloud Drive are never touched at any depth.
-- **Re-validated at removal time.** Each path is checked again right before removal. Symlinks are never followed, so a link can't redirect a removal outside the allowed folders.
+- **Re-validated at removal time.** Each path is checked again right before removal. Symlinks are never followed, so a link can't redirect a removal outside the allowed folders. Locked, SIP-protected and iCloud-only files are skipped, never force-unlocked.
 - **Proof before purge.** Dev Purge only flags a folder when a project file proves what it is: `node_modules` needs a `package.json` beside it, and `target` needs `Cargo.toml`, `pom.xml` or `build.sbt`. A random folder called `build` in your notes is left alone.
 - **Active work is left alone.** Temporary files of AI tools touched in the last 24 hours are skipped, so running sessions aren't broken.
 - **Exact matching in the uninstaller.** Leftovers are matched by exact bundle identifier, never by fuzzy name guessing. Apple apps are not listed.

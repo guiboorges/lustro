@@ -42,6 +42,11 @@ public struct JunkCategory: Codable, Sendable, Identifiable {
     public let requiresFullDiskAccess: Bool?
     /// Bundle IDs of the apps these files belong to; their files are held back while they run.
     public let owners: [String]?
+    /// SF Symbol name and accent colour for the category tile.
+    public let icon: String?
+    public let tint: String?
+    /// For device backups: hide the most recent backup of each device.
+    public let keepNewestPerDevice: Bool?
     public let targets: [JunkTarget]
 }
 

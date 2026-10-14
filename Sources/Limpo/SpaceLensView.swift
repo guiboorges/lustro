@@ -60,7 +60,7 @@ final class SpaceLensModel {
         selection = []
     }
 
-    func remove(with remover: Remover) {
+    func remove(with remover: Remover, onFinished: @escaping @MainActor (RemovalReport) -> Void) {
         let nodes = selectedNodes
         let items = nodes.map { ScanItem(url: $0.url, size: $0.size, isDirectory: $0.isDirectory) }
         task = Task {
@@ -70,7 +70,14 @@ final class SpaceLensModel {
                 for item in report.removed { index?.forget(item.url, size: item.size) }
             }
             reloadChildren()
+            onFinished(report)
         }
+    }
+
+    /// Stable colour per entry, following the design's treemap palette.
+    func color(for node: SpaceNode) -> Color {
+        guard let index = children.firstIndex(of: node) else { return .gray }
+        return node.isDirectory ? Palette.sequence[index % Palette.sequence.count] : .gray
     }
 }
 
@@ -81,8 +88,8 @@ struct SpaceLensView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ModuleHeader(title: "Space Lens", subtitle: "See what takes up space and remove what you don't need.",
-                         symbol: "circle.hexagongrid") {
+            ModuleHeader(title: "Space Lens", subtitle: "See what takes up space. Click a block to look inside.",
+                         symbol: Module.spaceLens.symbol, tint: Module.spaceLens.tint) {
                 if model.isBuilding {
                     Button("Stop") { model.cancel() }
                 } else {
@@ -92,11 +99,11 @@ struct SpaceLensView: View {
                     }
                 }
             }
-            Divider()
             if model.isBuilding {
                 ScanningView(message: model.progressMessage, fraction: nil)
             } else if model.index == nil {
                 VStack(spacing: 16) {
+                    IconTile(symbol: Module.spaceLens.symbol, tint: Module.spaceLens.tint, size: 72)
                     Text("Measure your home folder to see where your space goes.").font(.title3)
                     Button { model.build(root: FileManager.default.homeDirectoryForCurrentUser) } label: {
                         Label("Scan Home Folder", systemImage: "magnifyingglass").padding(.horizontal, 12).padding(.vertical, 4)
@@ -114,7 +121,9 @@ struct SpaceLensView: View {
             Button(app.settings.removalMode == .permanent ? "Delete Permanently" : "Move to Trash",
                    role: app.settings.removalMode == .permanent ? .destructive : nil) {
                 model.remove(with: Remover(policy: app.settings.policy(), mode: app.settings.removalMode,
-                                           dryRun: app.settings.dryRun))
+                                           dryRun: app.settings.dryRun)) { report in
+                    app.record(module: "Space Lens", report: report, rules: [:], quitApps: [])
+                }
             }
         } message: {
             Text("Protected folders such as Documents, Desktop or Library are always skipped.")
@@ -123,23 +132,34 @@ struct SpaceLensView: View {
 
     private var browser: some View {
         VStack(spacing: 0) {
-            Breadcrumbs(path: model.path) { model.go(to: $0) }
-                .padding(.horizontal, 20).padding(.vertical, 8)
-            if let report = model.lastReport {
-                ReportBanner(report: report) {}.padding(.horizontal, 20).padding(.bottom, 8)
-            }
-            HSplitView {
-                Treemap(nodes: model.children) { model.open($0) }
-                    .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(12)
-                SpaceList(model: model)
-                    .frame(minWidth: 320, idealWidth: 380, maxHeight: .infinity)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
             HStack {
-                Text("\(model.currentSize.formattedBytes) in \(model.current?.lastPathComponent ?? "")")
-                    .foregroundStyle(.secondary)
+                Breadcrumbs(path: model.path) { model.go(to: $0) }
+                if let index = model.index {
+                    Text("\(model.currentSize.formattedBytes) · \(index.scannedFiles.formatted()) files scanned")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 28).padding(.bottom, 12)
+            if let report = model.lastReport {
+                ReportBanner(report: report) {}.padding(.horizontal, 28).padding(.bottom, 8)
+            }
+            HStack(spacing: 16) {
+                Treemap(model: model)
+                    .padding(6)
+                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                SpaceList(model: model)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
+                    .frame(width: 360)
+            }
+            .padding(.horizontal, 28).padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack {
+                Text(model.selection.isEmpty
+                     ? "Select items to remove · protected folders like Documents and Library can't be selected"
+                     : "\(model.selectedNodes.map(\.name).joined(separator: ", ")) selected")
+                    .font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
                 let size = model.selectedNodes.reduce(Int64(0)) { $0 + $1.size }
                 Text(size.formattedBytes).font(.title3.monospacedDigit().weight(.semibold))
@@ -149,7 +169,9 @@ struct SpaceLensView: View {
                     .controlSize(.large)
                     .disabled(model.selection.isEmpty)
             }
-            .padding(.horizontal, 20).padding(.vertical, 12)
+            .padding(.horizontal, 28).padding(.vertical, 12)
+            .background(.bar)
+            .overlay(alignment: .top) { Divider() }
         }
     }
 
@@ -198,14 +220,17 @@ struct SpaceList: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(node.name).lineLimit(1).truncationMode(.middle)
                     GeometryReader { geo in
-                        Capsule().fill(.tint.opacity(0.6))
-                            .frame(width: geo.size.width * share(node))
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.primary.opacity(0.06))
+                            Capsule().fill(model.color(for: node)).frame(width: max(geo.size.width * share(node), 3))
+                        }
                     }
                     .frame(height: 4)
                 }
                 Text(node.size.formattedBytes).font(.callout.monospacedDigit()).frame(minWidth: 70, alignment: .trailing)
             }
             .contentShape(Rectangle())
+            .listRowBackground(model.selection.contains(node.id) ? Color.accentColor.opacity(0.1) : Color.clear)
             .onTapGesture(count: 2) { model.open(node) }
             .contextMenu {
                 if node.isDirectory { Button("Open") { model.open(node) } }
@@ -223,9 +248,9 @@ struct SpaceList: View {
 
 /// Squarified treemap of the largest entries; click a folder to open it.
 struct Treemap: View {
-    let nodes: [SpaceNode]
-    let open: (SpaceNode) -> Void
+    let model: SpaceLensModel
     @State private var hovered: String?
+    private var nodes: [SpaceNode] { model.children }
 
     var body: some View {
         GeometryReader { geo in
@@ -233,23 +258,25 @@ struct Treemap: View {
             let rects = Squarify.layout(sizes: shown.map { Double($0.size) }, in: CGRect(origin: .zero, size: geo.size))
             ZStack(alignment: .topLeading) {
                 ForEach(Array(zip(shown, rects)), id: \.0.id) { node, rect in
-                    let hue = Double(Self.stableHash(node.name) % 360) / 360
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(hue: hue, saturation: node.isDirectory ? 0.45 : 0.2, brightness: hovered == node.id ? 0.95 : 0.85))
+                    let color = model.color(for: node)
+                    let selected = model.selection.contains(node.id)
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(color.opacity(hovered == node.id ? 1 : 0.82))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white, lineWidth: selected ? 3 : 0))
                         .overlay(alignment: .topLeading) {
-                            if rect.width > 70 && rect.height > 34 {
+                            if rect.width > 70 && rect.height > 38 {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(node.name).font(.caption.weight(.semibold)).lineLimit(1)
-                                    Text(node.size.formattedBytes).font(.caption2)
+                                    Text(node.name).font(.callout.weight(.semibold)).lineLimit(1)
+                                    Text(node.size.formattedBytes).font(.caption)
                                 }
-                                .foregroundStyle(.black.opacity(0.75))
-                                .padding(6)
+                                .foregroundStyle(.white)
+                                .padding(8)
                             }
                         }
-                        .frame(width: max(rect.width - 3, 0), height: max(rect.height - 3, 0))
-                        .offset(x: rect.minX, y: rect.minY)
+                        .frame(width: max(rect.width - 4, 0), height: max(rect.height - 4, 0))
+                        .offset(x: rect.minX + 2, y: rect.minY + 2)
                         .onHover { hovered = $0 ? node.id : nil }
-                        .onTapGesture { open(node) }
+                        .onTapGesture { model.open(node) }
                         .help("\(node.name) — \(node.size.formattedBytes)")
                 }
             }

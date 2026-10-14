@@ -9,6 +9,8 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
     case ignoredByUser(String)
     case notOwnedByUser(String)
     case missing(String)
+    case systemProtected(String)
+    case cloudPlaceholder(String)
 
     public var description: String {
         switch self {
@@ -19,6 +21,8 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
         case .ignoredByUser(let p): "On your ignore list: \(p)"
         case .notOwnedByUser(let p): "Not owned by you: \(p)"
         case .missing(let p): "No longer exists: \(p)"
+        case .systemProtected(let p): "Protected by macOS (SIP, restricted or locked): \(p)"
+        case .cloudPlaceholder(let p): "Only in iCloud, not on this Mac: \(p)"
         }
     }
 }
@@ -101,6 +105,8 @@ public struct SafetyPolicy: Sendable {
             throw .missing(real.path)
         }
 
+        try checkFileFlags(real)
+
         let allowedRoots = [home] + extraAllowedRoots
         if allowedRoots.contains(where: { Self.isStrictlyInside(real.path, $0.path) }) {
             return
@@ -125,6 +131,20 @@ public struct SafetyPolicy: Sendable {
     static func isStrictlyInside(_ path: String, _ root: String) -> Bool {
         let base = root.hasSuffix("/") ? root : root + "/"
         return path.hasPrefix(base) && path.count > base.count
+    }
+
+    /// Flags that mean "leave this alone": system integrity protection, locked files and
+    /// iCloud placeholders whose data is not on this Mac. Unlike some cleaners, Limpo never
+    /// clears these flags to force a removal.
+    static let lockedFlags = UInt32(UF_IMMUTABLE) | UInt32(SF_IMMUTABLE) | UInt32(SF_RESTRICTED) | UInt32(UF_APPEND) | UInt32(SF_APPEND)
+    static let datalessFlag: UInt32 = 0x4000_0000 // SF_DATALESS
+
+    private func checkFileFlags(_ url: URL) throws(SafetyViolation) {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return }
+        if info.st_flags & Self.lockedFlags != 0 { throw .systemProtected(url.path) }
+        if info.st_flags & Self.datalessFlag != 0 { throw .cloudPlaceholder(url.path) }
+        if getxattr(url.path, "com.apple.rootless", nil, 0, 0, XATTR_NOFOLLOW) >= 0 { throw .systemProtected(url.path) }
     }
 
     private func isSymlink(_ url: URL) -> Bool {

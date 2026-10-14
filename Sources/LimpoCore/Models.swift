@@ -27,15 +27,23 @@ public struct ScanItem: Identifiable, Hashable, Sendable {
     public let size: Int64
     public let isDirectory: Bool
     public let lastModified: Date?
-    /// Optional human-readable context, e.g. "next to package.json".
+    /// Short label shown next to the item, e.g. "JavaScript".
     public let note: String?
+    /// Why the scanner flagged it, e.g. "Found next to package.json". Shown in "Why is this safe?".
+    public let evidence: String?
 
-    public init(url: URL, size: Int64, isDirectory: Bool, lastModified: Date? = nil, note: String? = nil) {
+    public init(url: URL, size: Int64, isDirectory: Bool, lastModified: Date? = nil, note: String? = nil, evidence: String? = nil) {
         self.url = url.standardizedFileURL
         self.size = size
         self.isDirectory = isDirectory
         self.lastModified = lastModified
         self.note = note
+        self.evidence = evidence
+    }
+
+    public func with(note: String? = nil, evidence: String? = nil) -> ScanItem {
+        ScanItem(url: url, size: size, isDirectory: isDirectory, lastModified: lastModified,
+                 note: note ?? self.note, evidence: evidence ?? self.evidence)
     }
 }
 
@@ -50,12 +58,17 @@ public struct ScanGroup: Identifiable, Hashable, Sendable {
     public let autoSelect: Bool
     /// Bundle IDs known to own every item in the group (in addition to per-path detection).
     public let owners: [String]
+    /// SF Symbol and accent colour name for the group's tile (e.g. "terminal", "teal").
+    public let icon: String?
+    public let tint: String?
+    /// Last time the user worked in this group's project (Dev Purge).
+    public let lastActivity: Date?
     public var items: [ScanItem]
 
     public var totalSize: Int64 { items.reduce(0) { $0 + $1.size } }
 
     public init(id: String, title: String, detail: String, section: String, risk: RiskLevel, autoSelect: Bool,
-                owners: [String] = [], items: [ScanItem]) {
+                owners: [String] = [], icon: String? = nil, tint: String? = nil, lastActivity: Date? = nil, items: [ScanItem]) {
         self.id = id
         self.title = title
         self.detail = detail
@@ -63,6 +76,9 @@ public struct ScanGroup: Identifiable, Hashable, Sendable {
         self.risk = risk
         self.autoSelect = autoSelect && risk != .caution
         self.owners = owners
+        self.icon = icon
+        self.tint = tint
+        self.lastActivity = lastActivity
         self.items = items
     }
 }
