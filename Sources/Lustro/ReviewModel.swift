@@ -70,7 +70,7 @@ final class ReviewModel {
               using scanner: @escaping @Sendable (@escaping ProgressHandler) async -> [ScanGroup]) {
         task?.cancel()
         phase = .scanning
-        progressMessage = "Starting…"
+        progressMessage = String(localized: "Starting…")
         progressFraction = nil
         lastReport = nil
         let progress = progressHandler()

@@ -14,15 +14,15 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
 
     public var description: String {
         switch self {
-        case .notAbsolute(let p): "Path is not absolute: \(p)"
-        case .protectedPath(let p): "Protected location, never removed: \(p)"
-        case .insideDeniedLocation(let p): "Inside a location Lustro never touches: \(p)"
-        case .outsideAllowedRoots(let p): "Outside the folders Lustro is allowed to clean: \(p)"
-        case .ignoredByUser(let p): "On your ignore list: \(p)"
-        case .notOwnedByUser(let p): "Not owned by you: \(p)"
-        case .missing(let p): "No longer exists: \(p)"
-        case .systemProtected(let p): "Protected by macOS (SIP, restricted or locked): \(p)"
-        case .cloudPlaceholder(let p): "Only in iCloud, not on this Mac: \(p)"
+        case .notAbsolute(let p): String(localized: "Path is not absolute: \(p)")
+        case .protectedPath(let p): String(localized: "Protected location, never removed: \(p)")
+        case .insideDeniedLocation(let p): String(localized: "Inside a location Lustro never touches: \(p)")
+        case .outsideAllowedRoots(let p): String(localized: "Outside the folders Lustro is allowed to clean: \(p)")
+        case .ignoredByUser(let p): String(localized: "On your ignore list: \(p)")
+        case .notOwnedByUser(let p): String(localized: "Not owned by you: \(p)")
+        case .missing(let p): String(localized: "No longer exists: \(p)")
+        case .systemProtected(let p): String(localized: "Protected by macOS (SIP, restricted or locked): \(p)")
+        case .cloudPlaceholder(let p): String(localized: "Only in iCloud, not on this Mac: \(p)")
         }
     }
 }

@@ -170,7 +170,7 @@ enum Palette {
 extension Date {
     /// "2 minutes ago", in the app's UI language.
     var relativeTime: String {
-        if Date().timeIntervalSince(self) < 60 { return "just now" }
+        if Date().timeIntervalSince(self) < 60 { return String(localized: "just now") }
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
         formatter.unitsStyle = .full
@@ -180,11 +180,16 @@ extension Date {
     /// "3 days ago", "today".
     var relativeDescription: String {
         let days = Calendar.current.dateComponents([.day], from: self, to: Date()).day ?? 0
-        if days < 1 { return "today" }
+        if days < 1 { return String(localized: "today") }
         // Match the app's UI language rather than the system's, so sentences don't mix languages.
         let locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
         return formatted(Date.RelativeFormatStyle(presentation: .named, locale: locale))
     }
+}
+
+/// Looks up text that comes from data (rule titles, section names) rather than from code.
+func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
 }
 
 extension String {

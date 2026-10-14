@@ -112,7 +112,7 @@ struct SpaceLensView: View {
                 browser
             }
         }
-        .confirmationDialog("Remove \(model.selectedNodes.count) item\(model.selectedNodes.count == 1 ? "" : "s")?",
+        .confirmationDialog(model.selectedNodes.count == 1 ? String(localized: "Remove 1 item?") : String(localized: "Remove \(model.selectedNodes.count) items?"),
                             isPresented: $confirming, titleVisibility: .visible) {
             Button(app.settings.removalMode == .permanent ? "Delete Permanently" : "Move to Trash",
                    role: app.settings.removalMode == .permanent ? .destructive : nil) {
@@ -183,7 +183,7 @@ struct Breadcrumbs: View {
                     let last = index == path.count - 1
                     if index > 0 { Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.textTertiary) }
                     Button { go(index) } label: {
-                        Text(index == 0 ? (url.path == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : url.path.abbreviatingHome) : url.lastPathComponent)
+                        Text(index == 0 ? (url.path == FileManager.default.homeDirectoryForCurrentUser.path ? String(localized: "Home") : url.path.abbreviatingHome) : url.lastPathComponent)
                             .font(.lCaption)
                             .foregroundStyle(last ? Theme.onBrand : Theme.textSecondary)
                             .padding(.horizontal, 10).padding(.vertical, 5)

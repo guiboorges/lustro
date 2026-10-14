@@ -54,7 +54,7 @@ public struct Remover: Sendable {
             }
             if let holders = inUse[item.url], !holders.isEmpty {
                 let names = Array(Set(holders.map(\.name))).sorted().prefix(3).joined(separator: ", ")
-                report.failures.append(RemovalFailure(url: item.url, reason: "In use by \(names). Quit it and try again."))
+                report.failures.append(RemovalFailure(url: item.url, reason: String(localized: "In use by \(names). Quit it and try again.")))
                 continue
             }
             if dryRun {

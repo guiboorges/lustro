@@ -76,7 +76,7 @@ public struct Uninstaller: Sendable {
     public func removalPlan(for app: InstalledApp) -> [ScanGroup] {
         var groups: [ScanGroup] = []
         if let bundle = DiskUsage.item(for: app.url) {
-            groups.append(ScanGroup(id: "app", title: "Application", detail: app.url.path,
+            groups.append(ScanGroup(id: "app", title: String(localized: "Application"), detail: app.url.path,
                                     section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID],
                                     icon: "shippingbox", tint: "pink", items: [bundle]))
         }
@@ -90,14 +90,14 @@ public struct Uninstaller: Sendable {
         let supportItems = support + extra.filter { knowledgeBase.protectingApp(for: $0.url, home: home) == nil }
         let dataItems = data + extra.filter { knowledgeBase.protectingApp(for: $0.url, home: home) != nil }
         if !supportItems.isEmpty {
-            groups.append(ScanGroup(id: "leftovers", title: "Support files",
-                                    detail: "Preferences, caches, containers and other files created by the app",
+            groups.append(ScanGroup(id: "leftovers", title: String(localized: "Support files"),
+                                    detail: String(localized: "Preferences, caches, containers and other files created by the app"),
                                     section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID],
                                     icon: "lock.shield", tint: "indigo", items: supportItems.sorted { $0.size > $1.size }))
         }
         if !dataItems.isEmpty {
-            let why = knowledgeBase.app(forBundleID: app.bundleID)?.why ?? "Data you may want to keep."
-            groups.append(ScanGroup(id: "app-data", title: "Your data in \(app.name)", detail: why,
+            let why = knowledgeBase.app(forBundleID: app.bundleID).map { String(localized: String.LocalizationValue($0.why)) } ?? String(localized: "Data you may want to keep.")
+            groups.append(ScanGroup(id: "app-data", title: String(localized: "Your data in \(app.name)"), detail: why,
                                     section: app.name, risk: .caution, autoSelect: false, owners: [app.bundleID],
                                     icon: "person.crop.square", tint: "red", items: dataItems.sorted { $0.size > $1.size }))
         }

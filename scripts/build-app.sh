@@ -23,6 +23,8 @@ cp "$BIN_DIR/Lustro" "$APP/Contents/MacOS/Lustro"
 # SwiftPM resource bundle (rules.json) must sit next to the executable's Resources.
 cp -R "$BIN_DIR/Lustro_LustroCore.bundle" "$APP/Contents/Resources/"
 [[ -f Resources/AppIcon.icns ]] && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
+# Translations (Localization/*.json → <language>.lproj/Localizable.strings).
+python3 scripts/build-localization.py "$APP/Contents/Resources"
 # Bundled typeface (Plus Jakarta Sans, SIL Open Font License), registered via ATSApplicationFontsPath.
 mkdir -p "$APP/Contents/Resources/Fonts"
 cp Resources/Fonts/*.ttf Resources/Fonts/OFL.txt "$APP/Contents/Resources/Fonts/"
@@ -35,6 +37,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Lustro</string>
   <key>CFBundleIdentifier</key><string>io.github.guiboorges.lustro</string>
   <key>CFBundleName</key><string>Lustro</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>pt-BR</string><string>pt-PT</string><string>pt</string></array>
   <key>CFBundleDisplayName</key><string>Lustro</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>

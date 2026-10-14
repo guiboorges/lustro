@@ -32,7 +32,8 @@ struct OverviewView: View {
                            progress: cleanup.totalSize > 0 ? Double(cleanup.selectedSize) / Double(cleanup.totalSize) : 0,
                            ringLabel: shortSize(cleanup.selectedSize),
                            title: cleanup.phase == .scanning ? "Scanning…" : "Cleanup ready",
-                           detail: "\(cleanup.selectedItems.count) items · " + (app.settings.removalMode == .trash ? "all go to the Trash" : "deleted permanently")) {
+                           detail: app.settings.removalMode == .trash ? "\(cleanup.selectedItems.count) items · all go to the Trash"
+                               : "\(cleanup.selectedItems.count) items · deleted permanently") {
                     module = .cleanup
                 }
                 let inactive = devPurge.groups.filter(\.autoSelect)
@@ -40,7 +41,8 @@ struct OverviewView: View {
                            progress: devPurge.groups.isEmpty ? 0 : Double(inactive.count) / Double(devPurge.groups.count),
                            ringLabel: "\(inactive.count)", tint: Theme.safe,
                            title: "Dev Purge",
-                           detail: "\(inactive.count) inactive project\(inactive.count == 1 ? "" : "s") · \(inactive.reduce(Int64(0)) { $0 + $1.totalSize }.formattedBytes)") {
+                           detail: inactive.count == 1 ? "1 inactive project · \(inactive.reduce(Int64(0)) { $0 + $1.totalSize }.formattedBytes)"
+                               : "\(inactive.count) inactive projects · \(inactive.reduce(Int64(0)) { $0 + $1.totalSize }.formattedBytes)") {
                     module = .devPurge
                 }
                 SafeByDesignCard().frame(width: 290)
@@ -49,7 +51,7 @@ struct OverviewView: View {
         }
     }
 
-    private var subtitle: String {
+    private var subtitle: LocalizedStringKey {
         if scanning { return "Scanning… nothing is removed until you review it" }
         if let date = cleanup.lastScanDate {
             return "Last scan \(date.relativeTime) · nothing is removed until you review it"
@@ -69,7 +71,7 @@ struct OverviewView: View {
             KPICard(label: "Disk used", value: number(used), unit: unit(used),
                     detail: disk.map { "of \($0.total.formattedBytes) · \($0.available.formattedBytes) free" } ?? "")
             KPICard(label: "Restorable", value: number(restorable.reduce(0) { $0 + $1.size }), unit: unit(restorable.reduce(0) { $0 + $1.size }),
-                    detail: runs == 0 ? "nothing in the Trash from Lustro" : "still in the Trash · \(runs) run\(runs == 1 ? "" : "s")")
+                    detail: runs == 0 ? "nothing in the Trash from Lustro" : runs == 1 ? "still in the Trash · 1 run" : "still in the Trash · \(runs) runs")
         }
     }
 }
@@ -151,7 +153,7 @@ struct JunkByTypeCard: View {
             ForEach(Array(totals.enumerated()), id: \.element.name) { index, section in
                 HStack(spacing: 8) {
                     Circle().fill(Palette.sectionColor(index)).frame(width: 8, height: 8)
-                    Text(section.name).font(.lCallout)
+                    Text(LocalizedStringKey(section.name)).font(.lCallout)
                     Spacer()
                     Text("\(Int((Double(section.total) / Double(total) * 100).rounded()))%")
                         .font(.lCalloutStrong).foregroundStyle(Theme.textSecondary).monospacedDigit()
@@ -181,7 +183,7 @@ struct LargestFoldersCard: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Largest folders").font(.lTitle3)
-                        Text(model.current.map { $0.path.abbreviatingHome + " · from Space Lens" } ?? "From Space Lens")
+                        Text(model.current.map { "\($0.path.abbreviatingHome) · from Space Lens" } ?? "From Space Lens")
                             .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                     }
                     Spacer()
@@ -242,8 +244,8 @@ struct ActionPill: View {
     let progress: Double
     let ringLabel: String
     var tint: Color = Theme.orange500
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let action: () -> Void
 
     var body: some View {
@@ -270,6 +272,12 @@ struct ActionPill: View {
 }
 
 struct SafeByDesignCard: View {
+    private func badge(_ text: LocalizedStringKey) -> some View {
+        Text(text).font(.lCaption).foregroundStyle(Theme.onBrand)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Color.white.opacity(0.24), in: Capsule())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Lustro").overline(Theme.onBrandMuted)
@@ -277,11 +285,8 @@ struct SafeByDesignCard: View {
             Text("Every item explains why it's safe. Put anything back from History.")
                 .font(.lCaption).foregroundStyle(Theme.onBrandMuted).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
-                ForEach(["Trash by default", "Why? on every item"], id: \.self) { label in
-                    Text(label).font(.lCaption).foregroundStyle(Theme.onBrand)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Color.white.opacity(0.24), in: Capsule())
-                }
+                badge("Trash by default")
+                badge("Why? on every item")
             }
         }
         .padding(.horizontal, 20).padding(.vertical, 16)

@@ -179,14 +179,14 @@ public struct ProjectArtifactScanner: Sendable {
         for rule in rules where PathPattern.matches(name, rule.name) {
             for marker in rule.siblingMarkers {
                 if let sibling = siblings.first(where: { PathPattern.matches($0, marker) }) {
-                    return (rule, "Found next to \(sibling), so it belongs to a \(rule.ecosystem) project")
+                    return (rule, String(localized: "Found next to \(sibling), so it belongs to a \(rule.ecosystem) project"))
                 }
             }
             if !rule.contains.isEmpty {
                 let inside = (try? FileManager.default.contentsOfDirectory(atPath: artifact.path)) ?? []
                 for pattern in rule.contains {
                     if let hit = inside.first(where: { PathPattern.matches($0, pattern) }) {
-                        return (rule, "Contains \(hit), which marks a \(rule.ecosystem) cache")
+                        return (rule, String(localized: "Contains \(hit), which marks a \(rule.ecosystem) cache"))
                     }
                 }
             }

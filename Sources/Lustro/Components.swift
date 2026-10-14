@@ -74,7 +74,7 @@ struct PillButtonStyle: ButtonStyle {
 
 struct Chip: View {
     enum Tone { case safe, review, caution, neutral }
-    let text: String
+    let text: LocalizedStringKey
     let tone: Tone
 
     private var colors: (Color, Color) {
@@ -157,10 +157,11 @@ struct Checkbox: View {
 
 /// Stat card: overline label, big metric + unit, context line, optional mini bar chart.
 struct KPICard: View {
-    let label: String
+    let label: LocalizedStringKey
+    /// Shown as is: numbers and units are formatted (and localised) by the caller.
     let value: String
     let unit: String
-    let detail: String
+    let detail: LocalizedStringKey
     var bars: [Double]? = nil
 
     var body: some View {
@@ -213,13 +214,14 @@ struct Ring: View {
 
 /// Pill-shaped segmented control. `ink` selection = dark capsule (Settings); otherwise white (filters).
 struct Segmented<Value: Hashable>: View {
-    let options: [(Value, String)]
+    let options: [(Value, LocalizedStringKey)]
     @Binding var selection: Value
     var ink = false
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(options, id: \.0) { value, label in
+            ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                let (value, label) = option
                 let selected = value == selection
                 Button { selection = value } label: {
                     Text(label)
@@ -266,8 +268,8 @@ struct LustroToggleStyle: ToggleStyle {
 
 /// Title + subtitle + trailing actions at the top of every panel.
 struct PanelHeader<Actions: View>: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     @ViewBuilder var actions: Actions
 
     var body: some View {
@@ -284,8 +286,8 @@ struct PanelHeader<Actions: View>: View {
 
 /// "AI TOOLS  0.9 GB" list section header.
 struct SectionHeader: View {
-    let title: String
-    let detail: String?
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -312,8 +314,8 @@ struct FloatingBar<Content: View>: View {
 /// Empty / idle state inside a panel.
 struct PanelPlaceholder<Actions: View>: View {
     let symbol: String
-    let title: String
-    let message: String
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
     @ViewBuilder var actions: Actions
 
     var body: some View {

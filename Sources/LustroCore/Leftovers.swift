@@ -60,13 +60,14 @@ public struct LeftoverScanner: Sendable {
                 if let latest = DiskUsage.latestModification(in: url), now.timeIntervalSince(latest) < minimumAge { continue }
                 guard let item = DiskUsage.item(for: url), item.size > 0 else { continue }
                 let days = item.lastModified.map { Int(now.timeIntervalSince($0) / 86_400) }
-                items.append(item.with(note: id, evidence: "No installed app has the ID \(id)"
-                                       + (days.map { " · untouched for \($0) days" } ?? "")))
+                let reason = days.map { String(localized: "No installed app has the ID \(id) · untouched for \($0) days") }
+                    ?? String(localized: "No installed app has the ID \(id)")
+                items.append(item.with(note: id, evidence: reason))
             }
         }
         guard !items.isEmpty else { return nil }
-        return ScanGroup(id: Self.groupID, title: "Leftovers of removed apps",
-                         detail: "Settings and data of apps that are no longer installed",
+        return ScanGroup(id: Self.groupID, title: String(localized: "Leftovers of removed apps"),
+                         detail: String(localized: "Settings and data of apps that are no longer installed"),
                          section: "System", risk: .review, autoSelect: false,
                          icon: "shippingbox.and.arrow.backward", tint: "orange",
                          items: items.sorted { $0.size > $1.size })

@@ -49,29 +49,35 @@ struct MaintenanceView: View {
         let cpu = v?.cpuPercent ?? model.cpuHistory.last
         return HStack(spacing: 16) {
             KPICard(label: "CPU load", value: cpu.map { "\(Int($0.rounded()))" } ?? "–", unit: "%",
-                    detail: v.map { String(format: "Load %.1f · ", $0.loadAverage) + (model.runaway != nil ? "1 runaway process" : "\($0.coreCount) cores") } ?? "Measuring…",
+                    detail: v.map { vitals -> LocalizedStringKey in
+                        let load = vitals.loadAverage.formatted(.number.precision(.fractionLength(1)))
+                        return model.runaway != nil ? "Load \(load) · 1 runaway process" : "Load \(load) · \(vitals.coreCount) cores"
+                    } ?? "Measuring…",
                     bars: model.cpuHistory.count > 1 ? model.cpuHistory.map { max($0, 1) } : nil)
             KPICard(label: "Memory pressure", value: v.map { pressure($0.memoryPressure) } ?? "–", unit: "",
-                    detail: v.map { "\(Int(Double($0.memoryUsed) / Double(max($0.memoryTotal, 1)) * 100))% in use · " + ($0.swapUsed > 0 ? "\($0.swapUsed.formattedBytes) swap" : "no swap") } ?? "")
+                    detail: v.map { vitals -> LocalizedStringKey in
+                        let used = Int(Double(vitals.memoryUsed) / Double(max(vitals.memoryTotal, 1)) * 100)
+                        return vitals.swapUsed > 0 ? "\(used)% in use · \(vitals.swapUsed.formattedBytes) swap" : "\(used)% in use · no swap"
+                    } ?? "")
             KPICard(label: "Temperature", value: v.map { thermal($0.thermalState).0 } ?? "–", unit: "",
-                    detail: v.map { thermal($0.thermalState).1 } ?? "")
+                    detail: v.map { LocalizedStringKey(thermal($0.thermalState).1) } ?? "")
         }
     }
 
     private func pressure(_ p: SystemVitals.MemoryPressure) -> String {
         switch p {
-        case .normal: "Normal"
-        case .warning: "Elevated"
-        case .critical: "High"
+        case .normal: String(localized: "Normal")
+        case .warning: String(localized: "Elevated")
+        case .critical: String(localized: "High")
         }
     }
 
     private func thermal(_ state: ProcessInfo.ThermalState) -> (String, String) {
         switch state {
-        case .nominal: ("Normal", "No throttling")
-        case .fair: ("Warm", "Fans may be running faster · no throttling")
-        case .serious: ("Hot", "macOS is slowing things down to cool off")
-        case .critical: ("Very hot", "Heavily throttled until it cools down")
+        case .nominal: (String(localized: "Normal"), String(localized: "No throttling"))
+        case .fair: (String(localized: "Warm"), String(localized: "Fans may be running faster · no throttling"))
+        case .serious: (String(localized: "Hot"), String(localized: "macOS is slowing things down to cool off"))
+        case .critical: (String(localized: "Very hot"), String(localized: "Heavily throttled until it cools down"))
         @unknown default: ("–", "")
         }
     }
@@ -88,7 +94,7 @@ private struct ProcessesCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Heavy processes").font(.lTitle3)
-                    Text("Sorted by \(model.sort == .cpu ? "CPU" : "memory") · refreshes every 5 seconds")
+                    Text(model.sort == .cpu ? "Sorted by CPU · refreshes every 5 seconds" : "Sorted by memory · refreshes every 5 seconds")
                         .font(.lCaption).foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
@@ -187,11 +193,11 @@ private struct ProcessRow: View {
         if process.isSystem {
             parts.append("macOS")
         } else if let app = process.appName {
-            parts.append(process.isAppMain ? "App" : app)
+            parts.append(process.isAppMain ? String(localized: "App") : app)
         } else {
             parts.append((process.path as NSString).deletingLastPathComponent.abbreviatingHome)
         }
-        if let running = process.runningTime, running >= 3600 { parts.append("running \(ProcessAdvisor.formatHours(running))") }
+        if let running = process.runningTime, running >= 3600 { parts.append(String(localized: "running \(ProcessAdvisor.formatHours(running))")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -208,8 +214,7 @@ private struct LaunchItemsCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Runs at login").font(.lTitle3)
-                    Text("\(model.launchItems.count) item\(model.launchItems.count == 1 ? "" : "s")"
-                         + (broken == 1 ? " · 1 points to a missing app" : broken > 1 ? " · \(broken) point to missing apps" : ""))
+                    Text(launchSummary(count: model.launchItems.count, broken: broken))
                         .font(.lCaption).foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
@@ -266,10 +271,19 @@ private struct LaunchItemsCard: View {
     }
 
     private func subtitle(_ item: LaunchItem, appName: String?) -> String {
-        if item.isBroken { return item.appPath != nil ? "Its app was deleted" : "Its program is missing" }
-        let kind = item.scope == .system ? "Background service" : "Launch agent"
+        if item.isBroken { return item.appPath != nil ? String(localized: "Its app was deleted") : String(localized: "Its program is missing") }
+        let kind = item.scope == .system ? String(localized: "Background service") : String(localized: "Launch agent")
         if appName != nil { return "\(kind) · \(item.label)" }
-        return "\(kind) · " + (item.scope == .user ? "just you" : "all users")
+        return "\(kind) · " + (item.scope == .user ? String(localized: "just you") : String(localized: "all users"))
+    }
+
+    private func launchSummary(count: Int, broken: Int) -> String {
+        let items = count == 1 ? String(localized: "1 item") : String(localized: "\(count) items")
+        switch broken {
+        case 0: return items
+        case 1: return items + " · " + String(localized: "1 points to a missing app")
+        default: return items + " · " + String(localized: "\(broken) point to missing apps")
+        }
     }
 }
 
@@ -286,11 +300,12 @@ private struct TuneUpsSection: View {
                 card(.snapshots, symbol: "clock.arrow.circlepath", title: "Local snapshots",
                      detail: "Time Machine copies on this disk, freed when space runs low.",
                      meta: model.snapshots.isEmpty ? (model.purgeable > 0 ? "\(model.purgeable.formattedBytes) purgeable" : "No snapshots")
-                         : "\(model.purgeable.formattedBytes) · \(model.snapshots.count) snapshot\(model.snapshots.count == 1 ? "" : "s")",
+                         : model.snapshots.count == 1 ? "\(model.purgeable.formattedBytes) · 1 snapshot"
+                         : "\(model.purgeable.formattedBytes) · \(model.snapshots.count) snapshots",
                      action: "Thin", ink: true)
                 card(.mail, symbol: "envelope", title: "Speed up Mail",
                      detail: "Compacts Mail's index. Mail needs to be closed first.",
-                     meta: model.mailIndexSize.map { "Index is \($0.formattedBytes)" } ?? "Needs Full Disk Access", action: "Run")
+                     meta: model.mailIndexSize.map { size -> LocalizedStringKey in "Index is \(size.formattedBytes)" } ?? "Needs Full Disk Access", action: "Run")
                 card(.dns, symbol: "globe", title: "Flush DNS cache",
                      detail: "For sites that won't load after a network change.", meta: "Asks for password", action: "Run")
                 card(.spotlight, symbol: "magnifyingglass", title: "Rebuild Spotlight",
@@ -300,8 +315,8 @@ private struct TuneUpsSection: View {
         }
     }
 
-    private func card(_ tuneUp: MaintenanceModel.TuneUp, symbol: String, title: String, detail: String,
-                      meta: String, action: String, ink: Bool = false) -> some View {
+    private func card(_ tuneUp: MaintenanceModel.TuneUp, symbol: String, title: LocalizedStringKey, detail: LocalizedStringKey,
+                      meta: LocalizedStringKey, action: LocalizedStringKey, ink: Bool = false) -> some View {
         let status = model.tuneUps[tuneUp]
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
@@ -367,7 +382,7 @@ struct QuitProcessSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 detailRow("Process", "\(process.name) · PID \(process.pid)")
-                detailRow("Using", "\(Int(process.cpuPercent.rounded()))% CPU · " + String(format: "about %.1f cores", process.cpuPercent / 100),
+                detailRow("Using", String(localized: "\(Int(process.cpuPercent.rounded()))% CPU · about \((process.cpuPercent / 100).formatted(.number.precision(.fractionLength(1)))) cores"),
                           tint: process.cpuPercent >= ProcessAdvisor.runawayCPU ? Theme.caution : Theme.textPrimary)
                 if let running = process.runningTime { detailRow("Running for", ProcessAdvisor.formatHours(running)) }
                 if let app = process.appName { detailRow("Part of", app) }
@@ -413,7 +428,7 @@ struct QuitProcessSheet: View {
         }
     }
 
-    private func detailRow(_ label: String, _ value: String, tint: Color = Theme.textPrimary) -> some View {
+    private func detailRow(_ label: LocalizedStringKey, _ value: String, tint: Color = Theme.textPrimary) -> some View {
         HStack {
             Text(label).font(.lCaption).foregroundStyle(Theme.textSecondary)
             Spacer()

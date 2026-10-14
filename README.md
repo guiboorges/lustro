@@ -3,7 +3,7 @@
 <h1 align="center">Lustro</h1>
 
 <p align="center">A free, open-source Mac cleaner that shows you exactly what it removes.<br>
-Native SwiftUI · no network access · no telemetry · moves to Trash by default.</p>
+Native SwiftUI · no network access · no telemetry · moves to Trash by default · light and dark · English and Portuguese.</p>
 
 <p align="center"><a href="#português">Português</a></p>
 
@@ -99,6 +99,10 @@ scripts/create-signing-identity.sh
 
 Some categories live in protected folders: sandboxed app caches, Mail downloads and iPhone backups. To include them, add Lustro under **System Settings → Privacy & Security → Full Disk Access**. Without it, those categories are skipped instead of flooding you with permission prompts.
 
+## Translations
+
+Lustro is available in English, Brazilian Portuguese and European Portuguese. Translations live in `Localization/<language>.json`, keyed by the English text exactly as it appears in the code (including `%@` and `%lld` placeholders). `scripts/build-localization.py` turns them into `.strings` files when the app is built, and `scripts/check-localization.sh` lists anything missing or unused; CI runs it on every pull request. To add a language, copy `pt-BR.json`, translate the values and add the language code to `CFBundleLocalizations` in `scripts/build-app.sh`.
+
 ## Adding cleaning rules
 
 Cleanup rules live in [`Sources/LustroCore/Resources/rules.json`](Sources/LustroCore/Resources/rules.json), so you can add support for an app without writing Swift. See [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -125,7 +129,7 @@ Lustro is an independent project and is not affiliated with any commercial Mac c
 
 ## Português
 
-**Lustro** é um limpador para Mac gratuito e de código aberto que mostra exatamente o que vai remover. É uma app nativa em SwiftUI, não faz ligações à rede, não tem telemetria e manda tudo para o Lixo por omissão.
+**Lustro** é um limpador para Mac gratuito e de código aberto que mostra exatamente o que vai remover. A interface está em português (do Brasil ou de Portugal, conforme o sistema) e tem tema claro e escuro. É uma app nativa em SwiftUI, não faz ligações à rede, não tem telemetria e manda tudo para o Lixo por omissão.
 
 - **Limpeza:** caches e logs de apps, Xcode, gestores de pacotes, editores e ferramentas de IA (Claude Code, Codex, Cursor…), atualizações e backups de iOS, instaladores e o Lixo.
 - **Dev Purge:** `node_modules`, `target`, `.venv`, `.next` e outros artefactos de projetos que podem ser reconstruídos. Só aparecem quando existe um ficheiro de projeto que prove o que são.

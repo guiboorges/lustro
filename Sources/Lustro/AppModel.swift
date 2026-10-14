@@ -58,6 +58,23 @@ final class AppModel {
         disk = (Int64(total), available)
     }
 
+    /// The Cleanup scan: catalog categories plus leftovers of removed apps. Runs off the main thread.
+    func cleanupScanner(catalog: RuleCatalog) -> @Sendable (@escaping ProgressHandler) async -> [ScanGroup] {
+        let scanner = JunkScanner(catalog: catalog, policy: settings.policy(), hasFullDiskAccess: hasFullDiskAccess,
+                                  disabledCategories: Set(settings.disabledCategories), keepNewestBackup: settings.keepNewestBackup)
+        let wantsLeftovers = !settings.disabledCategories.contains(LeftoverScanner.groupID)
+        let policy = settings.policy(), fullDiskAccess = hasFullDiskAccess
+        return { progress in
+            var groups = await scanner.scan(progress: progress)
+            // The ownership check asks LaunchServices about every candidate.
+            if wantsLeftovers, let group = LeftoverScanner(policy: policy, hasFullDiskAccess: fullDiskAccess,
+                                                            isOwned: AppModel.leftoverOwnerCheck()).scan() {
+                groups.append(group)
+            }
+            return groups
+        }
+    }
+
     /// Who still owns a bundle-ID-named folder: installed apps (LaunchServices knows them all, wherever they live),
     /// running apps, and working launch agents. Anything from the same vendor counts too (see LeftoverScanner).
     nonisolated static func leftoverOwnerCheck() -> LeftoverScanner.OwnerCheck {

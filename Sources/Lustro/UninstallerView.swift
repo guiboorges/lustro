@@ -102,7 +102,7 @@ struct UninstallerView: View {
                                         Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 32, height: 32)
                                         VStack(alignment: .leading, spacing: 1) {
                                             Text(item.name).font(selected ? .lCalloutStrong : .lCallout).lineLimit(1)
-                                            Text(item.version.map { "Version \($0)" } ?? item.bundleID)
+                                            Text(item.version.map { String(localized: "Version \($0)") } ?? item.bundleID)
                                                 .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                                         }
                                         Spacer()
@@ -142,7 +142,7 @@ struct UninstallerView: View {
                     Spacer()
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(model.review.totalSize.formattedBytes).font(.lMetricSmall).monospacedDigit()
-                        Text("app + \(max(model.review.allItems.count - 1, 0)) support files").font(.lCaption).foregroundStyle(Theme.textSecondary)
+                        Text(model.review.allItems.count - 1 == 1 ? "app + 1 support file" : "app + \(max(model.review.allItems.count - 1, 0)) support files").font(.lCaption).foregroundStyle(Theme.textSecondary)
                     }
                 }
                 .padding(20)
@@ -173,7 +173,7 @@ struct UninstallerView: View {
         }
     }
 
-    private func note(symbol: String, tint: Color, text: String) -> some View {
+    private func note(symbol: String, tint: Color, text: LocalizedStringKey) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol).foregroundStyle(tint)
             Text(text).font(.lCallout)

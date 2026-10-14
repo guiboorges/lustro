@@ -47,7 +47,22 @@ enum Module: String, CaseIterable, Identifiable {
     case overview, cleanup, devPurge, spaceLens, uninstaller, maintenance, devActivity, history, settings
     var id: String { rawValue }
 
-    var title: String {
+    /// The English name, as stored in History.
+    var englishTitle: String {
+        switch self {
+        case .overview: "Overview"
+        case .cleanup: "Cleanup"
+        case .devPurge: "Dev Purge"
+        case .spaceLens: "Space Lens"
+        case .uninstaller: "Uninstaller"
+        case .maintenance: "Maintenance"
+        case .devActivity: "Dev Activity"
+        case .history: "History"
+        case .settings: "Settings"
+        }
+    }
+
+    var title: LocalizedStringResource {
         switch self {
         case .overview: "Overview"
         case .cleanup: "Cleanup"
@@ -142,19 +157,7 @@ struct RootView: View {
 
     private func scanCleanup() {
         guard let catalog = app.catalog else { return }
-        let scanner = JunkScanner(catalog: catalog, policy: app.settings.policy(), hasFullDiskAccess: app.hasFullDiskAccess,
-                                  disabledCategories: Set(app.settings.disabledCategories), keepNewestBackup: app.settings.keepNewestBackup)
-        let wantsLeftovers = !app.settings.disabledCategories.contains(LeftoverScanner.groupID)
-        let policy = app.settings.policy(), fullDiskAccess = app.hasFullDiskAccess
-        cleanup.scan(preselection: app.settings.preselection) { progress in
-            var groups = await scanner.scan(progress: progress)
-            // Runs off the main thread: the ownership check asks LaunchServices about every candidate.
-            if wantsLeftovers, let group = LeftoverScanner(policy: policy, hasFullDiskAccess: fullDiskAccess,
-                                                            isOwned: AppModel.leftoverOwnerCheck()).scan() {
-                groups.append(group)
-            }
-            return groups
-        }
+        cleanup.scan(preselection: app.settings.preselection, using: app.cleanupScanner(catalog: catalog))
     }
 
     private func scanDevPurge() {
@@ -189,9 +192,10 @@ struct Sidebar: View {
             item(.devPurge, detail: devPurge.groups.isEmpty ? nil : devPurge.selectedSize.formattedBytes)
             item(.spaceLens)
             item(.uninstaller)
-            item(.maintenance, detail: maintenance.runaway == nil ? nil : "1 alert")
+            item(.maintenance, detail: maintenance.runaway == nil ? nil : String(localized: "1 alert"))
             item(.devActivity, detail: orphanDetail)
-            item(.history, detail: app.historyEntries.isEmpty ? nil : "\(app.historyEntries.count) run\(app.historyEntries.count == 1 ? "" : "s")")
+            item(.history, detail: app.historyEntries.isEmpty ? nil : app.historyEntries.count == 1 ? String(localized: "1 run")
+                 : String(localized: "\(app.historyEntries.count) runs"))
             Spacer()
             StorageCard(freeable: cleanup.selectedSize + devPurge.selectedSize)
                 .padding(.bottom, 8)
@@ -203,7 +207,7 @@ struct Sidebar: View {
 
     private var orphanDetail: String? {
         let count = devActivity.report.orphans.count
-        return count == 0 ? nil : "\(count) orphan\(count == 1 ? "" : "s")"
+        return count == 0 ? nil : count == 1 ? String(localized: "1 orphan") : String(localized: "\(count) orphans")
     }
 
     private func item(_ item: Module, detail: String? = nil) -> some View {
@@ -254,7 +258,8 @@ struct StorageCard: View {
                     }
                 }
                 .frame(height: 6)
-                Text("\(used.formattedBytes) of \(disk.total.formattedBytes) used" + (freeable > 0 ? "\n\(freeable.formattedBytes) can be freed" : ""))
+                Text(freeable > 0 ? "\(used.formattedBytes) of \(disk.total.formattedBytes) used\n\(freeable.formattedBytes) can be freed"
+                     : "\(used.formattedBytes) of \(disk.total.formattedBytes) used")
                     .font(.lCaption).foregroundStyle(Theme.onBrandMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }

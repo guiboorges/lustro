@@ -61,10 +61,11 @@ struct HistoryView: View {
         let restorable = app.historyEntries.flatMap { $0.restorableItems() }.reduce(Int64(0)) { $0 + $1.size }
         let putBack = app.historyEntries.flatMap(\.items).filter(\.restored)
         return HStack(spacing: 16) {
-            KPICard(label: "Removed this month", value: number(freed), unit: unit(freed), detail: "across \(thisMonth.count) run\(thisMonth.count == 1 ? "" : "s")")
+            KPICard(label: "Removed this month", value: number(freed), unit: unit(freed),
+                    detail: thisMonth.count == 1 ? "across 1 run" : "across \(thisMonth.count) runs")
             KPICard(label: "Restorable now", value: number(restorable), unit: unit(restorable), detail: "still in the Trash")
-            KPICard(label: "Put back", value: "\(putBack.count)", unit: putBack.count == 1 ? "item" : "items",
-                    detail: putBack.first.map { URL(fileURLWithPath: $0.originalPath).lastPathComponent } ?? "nothing yet")
+            KPICard(label: "Put back", value: "\(putBack.count)", unit: putBack.count == 1 ? String(localized: "item") : String(localized: "items"),
+                    detail: putBack.first.map { LocalizedStringKey(URL(fileURLWithPath: $0.originalPath).lastPathComponent) } ?? "nothing yet")
         }
     }
 
@@ -78,8 +79,8 @@ struct HistoryView: View {
         var buckets: [String: [HistoryEntry]] = [:]
         for entry in app.historyEntries {
             let title: String
-            if calendar.isDateInToday(entry.date) { title = "Today" }
-            else if calendar.isDateInYesterday(entry.date) { title = "Yesterday" }
+            if calendar.isDateInToday(entry.date) { title = String(localized: "Today") }
+            else if calendar.isDateInYesterday(entry.date) { title = String(localized: "Yesterday") }
             else { title = entry.date.formatted(date: .complete, time: .omitted) }
             if buckets[title] == nil { order.append(title) }
             buckets[title, default: []].append(entry)
@@ -105,7 +106,7 @@ struct RunCard: View {
                              foreground: status == .deletedPermanently ? Theme.caution : Theme.rust700, size: 40)
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 8) {
-                                Text(entry.module + (entry.dryRun ? " (dry run)" : "")).font(.lBodyStrong)
+                                Text(entry.dryRun ? String(localized: "\(moduleName) (dry run)") : moduleName).font(.lBodyStrong)
                                 StatusChip(status: status)
                             }
                             Text(subtitle).font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
@@ -155,9 +156,16 @@ struct RunCard: View {
 
     private var subtitle: String {
         var parts = [entry.date.formatted(date: .omitted, time: .shortened),
-                     "\(entry.items.count) item\(entry.items.count == 1 ? "" : "s")"]
-        if !entry.quitApps.isEmpty { parts.append("\(entry.quitApps.joined(separator: " and ")) quit and reopened") }
+                     entry.items.count == 1 ? String(localized: "1 item") : String(localized: "\(entry.items.count) items")]
+        if !entry.quitApps.isEmpty {
+            parts.append(String(localized: "\(entry.quitApps.formatted(.list(type: .and))) quit and reopened"))
+        }
         return parts.joined(separator: " · ")
+    }
+
+    /// History stores the English module name; show it in the current language.
+    private var moduleName: String {
+        Module.allCases.first { $0.englishTitle == entry.module }.map { String(localized: $0.title) } ?? entry.module
     }
 
     private var symbol: String {

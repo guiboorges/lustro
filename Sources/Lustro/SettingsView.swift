@@ -17,12 +17,12 @@ struct SettingsView: View {
                             if app.languageNeedsRestart {
                                 Button("Restart to Apply") { app.relaunch() }.buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
                             }
-                            Segmented(options: [(AppLanguage.system, String(localized: "System")), (.english, "English"), (.portuguese, "Português")],
+                            Segmented(options: [(AppLanguage.system, "System"), (.english, "English"), (.portuguese, "Português")],
                                       selection: $app.settings.language, ink: true)
                         }
                     }
                     row("Appearance", nil, last: true) {
-                        Segmented(options: [(Appearance.system, String(localized: "System")), (.light, String(localized: "Light")), (.dark, String(localized: "Dark"))],
+                        Segmented(options: [(Appearance.system, "System"), (.light, "Light"), (.dark, "Dark")],
                                   selection: $app.settings.appearance, ink: true)
                     }
                 }
@@ -77,8 +77,8 @@ struct SettingsView: View {
                                 HStack(spacing: 12) {
                                     Tile(symbol: category.icon ?? "folder", background: colors.background, foreground: colors.foreground, size: 30)
                                     VStack(alignment: .leading, spacing: 1) {
-                                        HStack(spacing: 8) { Text(category.title).font(.lBodyStrong); RiskChip(risk: category.risk) }
-                                        Text(category.section).font(.lCaption).foregroundStyle(Theme.textSecondary)
+                                        HStack(spacing: 8) { Text(L(category.title)).font(.lBodyStrong); RiskChip(risk: category.risk) }
+                                        Text(L(category.section)).font(.lCaption).foregroundStyle(Theme.textSecondary)
                                     }
                                 }
                             }
@@ -111,12 +111,12 @@ struct SettingsView: View {
 
                 group("Dev Purge folders", symbol: "folder") {
                     PathListEditor(paths: $app.settings.projectRoots,
-                                   placeholder: "Using defaults: " + ProjectArtifactScanner.defaultRoots().map { $0.lastPathComponent }.joined(separator: ", "))
+                                   placeholder: String(localized: "Using defaults: \(ProjectArtifactScanner.defaultRoots().map { $0.lastPathComponent }.joined(separator: ", "))"))
                 }
 
                 group("Ignore list", symbol: "eye.slash") {
                     PathListEditor(paths: $app.settings.ignoredPaths,
-                                   placeholder: "Nothing ignored yet. Right-click any item and choose Always Ignore.", allowFiles: true)
+                                   placeholder: String(localized: "Nothing ignored yet. Right-click any item and choose Always Ignore."), allowFiles: true)
                 }
             }
             .frame(maxWidth: 760, alignment: .leading)
@@ -127,7 +127,7 @@ struct SettingsView: View {
         .onAppear { app.refreshPermissions() }
     }
 
-    private func group<Content: View>(_ title: String, symbol: String, @ViewBuilder content: () -> Content) -> some View {
+    private func group<Content: View>(_ title: LocalizedStringKey, symbol: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label { Text(title).overline() } icon: { Image(systemName: symbol).foregroundStyle(Theme.rust700) }
                 .font(.system(size: 11, weight: .semibold))
@@ -137,7 +137,7 @@ struct SettingsView: View {
         }
     }
 
-    private func row<Control: View>(_ title: String, _ detail: String?, last: Bool = false, @ViewBuilder control: () -> Control) -> some View {
+    private func row<Control: View>(_ title: LocalizedStringKey, _ detail: LocalizedStringKey?, last: Bool = false, @ViewBuilder control: () -> Control) -> some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.lBodyStrong)
@@ -150,7 +150,7 @@ struct SettingsView: View {
         .overlay(alignment: .bottom) { if !last { Rectangle().fill(Theme.border).frame(height: 1) } }
     }
 
-    private func toggleRow(_ title: String, _ detail: String, _ isOn: Binding<Bool>, last: Bool = false) -> some View {
+    private func toggleRow(_ title: LocalizedStringKey, _ detail: LocalizedStringKey, _ isOn: Binding<Bool>, last: Bool = false) -> some View {
         Toggle(isOn: isOn) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.lBodyStrong)

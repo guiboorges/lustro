@@ -121,7 +121,7 @@ import Testing
 
     @Test func firefoxHelperAdvice() {
         let advice = ProcessAdvisor.advice(for: sample(cpu: 652, average: 600, runningFor: 39 * 3600))
-        #expect(advice.headline == "Firefox GPU Helper is using 6.5 cores")
+        #expect(advice.headline == "Firefox GPU Helper is using \(6.5.formatted(.number.precision(.fractionLength(1)))) cores")   // decimal separator follows the locale
         #expect(advice.detail.hasPrefix("Running for 39 hours, busy most of that time."))
         #expect(advice.detail.contains("about:processes"))
         #expect(advice.quitEffect.contains("draws pages on screen"))
@@ -130,7 +130,7 @@ import Testing
 
     @Test func mainAppAndCommandLineAdvice() {
         let app = ProcessAdvisor.advice(for: sample(name: "Code", path: "/Applications/Visual Studio Code.app/Contents/MacOS/Electron", cpu: 180))
-        #expect(app.headline == "Code is using 1.8 cores")
+        #expect(app.headline == "Code is using \(1.8.formatted(.number.precision(.fractionLength(1)))) cores")
         #expect(app.quitEffect.contains("quits Visual Studio Code itself"))
         #expect(app.findURL == nil)
         let tool = ProcessAdvisor.advice(for: sample(name: "node", path: "/opt/homebrew/bin/node", cpu: 300))

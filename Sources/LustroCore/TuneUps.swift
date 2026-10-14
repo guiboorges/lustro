@@ -78,8 +78,8 @@ public enum MailIndex {
         case open(String), vacuum(String)
         public var description: String {
             switch self {
-            case .open(let m): "Couldn't open Mail's index: \(m)"
-            case .vacuum(let m): "Couldn't compact Mail's index: \(m)"
+            case .open(let m): String(localized: "Couldn't open Mail's index: \(m)")
+            case .vacuum(let m): String(localized: "Couldn't compact Mail's index: \(m)")
             }
         }
     }

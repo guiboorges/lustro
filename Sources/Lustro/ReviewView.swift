@@ -7,8 +7,8 @@ struct ReviewView<EmptyContent: View, Accessory: View>: View {
     @Environment(AppModel.self) private var app
     let model: ReviewModel
     let module: String
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let symbol: String
     let scanner: @Sendable (@escaping ProgressHandler) async -> [ScanGroup]
     var activityDays: Int?
@@ -75,7 +75,7 @@ struct ScanningView: View {
             } else {
                 ProgressView().controlSize(.large)
             }
-            Text(message).font(.lCallout).foregroundStyle(Theme.textSecondary)
+            Text(L(message)).font(.lCallout).foregroundStyle(Theme.textSecondary)
                 .lineLimit(1).truncationMode(.middle).frame(maxWidth: 420)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,7 +92,7 @@ struct ReviewList: View {
             LazyVStack(spacing: 0) {
                 ForEach(model.sections, id: \.name) { section in
                     let total = section.groups.reduce(Int64(0)) { $0 + $1.totalSize }
-                    SectionHeader(title: section.name, detail: total.formattedBytes)
+                    SectionHeader(title: LocalizedStringKey(section.name), detail: LocalizedStringKey(total.formattedBytes))
                     ForEach(section.groups) { group in
                         GroupRow(model: model, group: group, activityDays: activityDays)
                         if model.expanded.contains(group.id) {
@@ -138,7 +138,7 @@ struct GroupRow: View {
                     Tile(symbol: group.icon ?? "folder", background: colors.background, foreground: colors.foreground)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
-                            Text(group.title).font(.lBodyStrong)
+                            Text(L(group.title)).font(.lBodyStrong)
                             RiskChip(risk: group.risk)
                             if isActive { Chip(text: "Active", tone: .neutral) }
                         }
@@ -159,15 +159,17 @@ struct GroupRow: View {
     }
 
     private var detail: String {
-        guard let last = group.lastActivity else { return group.detail }
-        return "\(group.detail) · \(isActive ? "edited" : "last touched") \(last.relativeDescription)"
+        let text = L(group.detail)
+        guard let last = group.lastActivity else { return text }
+        return isActive ? String(localized: "\(text) · edited \(last.relativeDescription)")
+            : String(localized: "\(text) · last touched \(last.relativeDescription)")
     }
 
     private var itemSummary: String {
         if group.items.count <= 3 {
             return group.items.map(\.url.lastPathComponent).joined(separator: " · ")
         }
-        return "\(group.items.count) items"
+        return String(localized: "\(group.items.count) items")
     }
 }
 
@@ -191,7 +193,7 @@ struct ItemRow: View {
             }
             Spacer()
             if let note = item.note {
-                Text(note).font(.lCaption).foregroundStyle(Theme.textSecondary)
+                Text(L(note)).font(.lCaption).foregroundStyle(Theme.textSecondary)
             } else if let date = item.lastModified {
                 Text(date.relativeDescription).font(.lCaption).foregroundStyle(Theme.textSecondary)
             }
@@ -388,14 +390,20 @@ struct ActionBar: View {
     }
 
     private var confirmTitle: String {
-        "\(permanent ? "Delete" : "Move") \(model.selectedItems.count) item\(model.selectedItems.count == 1 ? "" : "s") (\(model.selectedSize.formattedBytes))?"
+        let count = model.selectedItems.count, size = model.selectedSize.formattedBytes
+        switch (permanent, count == 1) {
+        case (true, true): return String(localized: "Delete 1 item (\(size))?")
+        case (true, false): return String(localized: "Delete \(count) items (\(size))?")
+        case (false, true): return String(localized: "Move 1 item to the Trash (\(size))?")
+        case (false, false): return String(localized: "Move \(count) items to the Trash (\(size))?")
+        }
     }
 
     private var confirmMessage: String {
-        if app.settings.dryRun { return "Dry run is on: nothing will actually be removed." }
+        if app.settings.dryRun { return String(localized: "Dry run is on: nothing will actually be removed.") }
         return permanent
-            ? "This cannot be undone. Items already in the Trash are always deleted permanently."
-            : "You can put items back from History until you empty the Trash. Items already in the Trash are deleted permanently."
+            ? String(localized: "This cannot be undone. Items already in the Trash are always deleted permanently.")
+            : String(localized: "You can put items back from History until you empty the Trash. Items already in the Trash are deleted permanently.")
     }
 }
 
@@ -410,7 +418,8 @@ struct RunningAppsSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Tile(symbol: "exclamationmark.triangle", background: Theme.orange500.opacity(0.14), foreground: Theme.review, size: 52)
             Text("Some apps are open").font(.lTitle2)
-            Text("Removing an app's files while it runs can make it misbehave until it restarts. Quit them first\(reopens ? " — Lustro reopens them when it's done —" : "") or leave their files for now.")
+            Text(reopens ? "Removing an app's files while it runs can make it misbehave until it restarts. Quit them first — Lustro reopens them when it's done — or leave their files for now."
+                 : "Removing an app's files while it runs can make it misbehave until it restarts. Quit them first or leave their files for now.")
                 .font(.lCallout).foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
@@ -421,7 +430,7 @@ struct RunningAppsSheet: View {
                         }
                         Text(conflict.app.name).font(.lBodyStrong)
                         Spacer()
-                        Text("\(conflict.items.count) item\(conflict.items.count == 1 ? "" : "s") · \(conflict.size.formattedBytes)")
+                        Text(conflict.items.count == 1 ? "1 item · \(conflict.size.formattedBytes)" : "\(conflict.items.count) items · \(conflict.size.formattedBytes)")
                             .font(.lCaption).foregroundStyle(Theme.textSecondary).monospacedDigit()
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10)
@@ -475,10 +484,12 @@ struct ReportBanner: View {
     }
 
     private var summary: String {
-        let verb = report.dryRun ? "Would free" : (report.mode == .trash ? "Moved to Trash" : "Freed")
-        var text = "\(verb) \(report.freedBytes.formattedBytes) · \(report.removed.count) item\(report.removed.count == 1 ? "" : "s")"
-        if !report.dryRun && report.mode == .trash { text += " · undo from History" }
-        if !report.failures.isEmpty { text += " · \(report.failures.count) skipped" }
-        return text
+        let size = report.freedBytes.formattedBytes
+        var parts = [report.dryRun ? String(localized: "Would free \(size)")
+                     : report.mode == .trash ? String(localized: "Moved to Trash \(size)") : String(localized: "Freed \(size)")]
+        parts.append(report.removed.count == 1 ? String(localized: "1 item") : String(localized: "\(report.removed.count) items"))
+        if !report.dryRun && report.mode == .trash { parts.append(String(localized: "undo from History")) }
+        if !report.failures.isEmpty { parts.append(String(localized: "\(report.failures.count) skipped")) }
+        return parts.joined(separator: " · ")
     }
 }

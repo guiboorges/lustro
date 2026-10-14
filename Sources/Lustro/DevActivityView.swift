@@ -56,22 +56,26 @@ extension ProcessGroup {
         }
     }
 
+    var isInTemporaryFolder: Bool {
+        guard let folder else { return false }
+        return folder.hasPrefix("/private/var/folders") || folder.hasPrefix("/private/tmp") || folder.hasPrefix("/tmp")
+    }
+
     /// "Projects/REA" for a project folder, the full path otherwise.
     var shortFolder: String? {
         guard let folder else { return nil }
+        if isInTemporaryFolder { return String(localized: "temporary folder") }
         let path = folder.abbreviatingHome
         let parts = path.split(separator: "/")
-        if path.hasPrefix("/private/var/folders") || path.hasPrefix("/private/tmp") || path.hasPrefix("/tmp") {
-            return "temporary folder"
-        }
         return parts.count > 2 ? parts.suffix(2).joined(separator: "/") : path
     }
 
     var whereStarted: String {
         switch kind {
-        case .agent, .terminal: root.tty.map { "Terminal \($0)" } ?? startedBy.map { "in \($0)" } ?? "no terminal"
-        case .orphan: "parent gone"
-        case .launchedBy(let app): "started by \(app)"
+        case .agent, .terminal: root.tty.map { String(localized: "Terminal \($0)") } ?? startedBy.map { String(localized: "in \($0)") }
+            ?? String(localized: "no terminal")
+        case .orphan: String(localized: "parent gone")
+        case .launchedBy(let app): String(localized: "started by \(app)")
         }
     }
 
@@ -85,12 +89,12 @@ extension ProcessGroup {
 
     /// What a child process is doing inside its group.
     func role(of child: ProcessEntry) -> String {
-        if let port = ports.first(where: { $0.pid == child.pid }) { return "Server · port \(port.port)" }
-        if DevActivity.agentName(child) != nil { return "Sub-agent" }
+        if let port = ports.first(where: { $0.pid == child.pid }) { return String(localized: "Server · port \(String(port.port))") }
+        if DevActivity.agentName(child) != nil { return String(localized: "Sub-agent") }
         let command = DevActivity.displayCommand(child).lowercased()
-        if command.contains("mcp") { return "MCP server" }
+        if command.contains("mcp") { return String(localized: "MCP server") }
         if isAgent, child.ppid == root.pid, child.arguments.contains("-c") {
-            return "Tool command" + (child.runningTime.map { " · " + ProcessAdvisor.formatHours($0) } ?? "")
+            return String(localized: "Tool command") + (child.runningTime.map { " · " + ProcessAdvisor.formatHours($0) } ?? "")
         }
         return child.runningTime.map(ProcessAdvisor.formatHours) ?? ""
     }
@@ -123,13 +127,16 @@ private struct OrphanBanner: View {
     }
 
     private var detail: String {
-        var text = "The terminal or agent session that started it has ended, but it kept going."
+        var parts = [String(localized: "The terminal or agent session that started it has ended, but it kept going.")]
         if let port = group.ports.first(where: \.exposed) ?? group.ports.first {
-            text += " It listens on port \(port.port)" + (port.exposed ? ", open to your whole network." : ", on this Mac only.")
+            let number = String(port.port)
+            parts.append(port.exposed ? String(localized: "It listens on port \(number), open to your whole network.")
+                         : String(localized: "It listens on port \(number), on this Mac only."))
         }
-        if group.shortFolder == "temporary folder" { text += " Its folder is temporary." }
-        if others > 0 { text += " \(others) more orphan\(others == 1 ? "" : "s") below." }
-        return text
+        if group.isInTemporaryFolder { parts.append(String(localized: "Its folder is temporary.")) }
+        if others == 1 { parts.append(String(localized: "1 more orphan below.")) }
+        if others > 1 { parts.append(String(localized: "\(others) more orphans below.")) }
+        return parts.joined(separator: " ")
     }
 }
 
@@ -146,7 +153,9 @@ private struct GroupsCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Agents & terminals").font(.lTitle3)
-                    Text("\(agents) AI session\(agents == 1 ? "" : "s") · \(others) command\(others == 1 ? "" : "s") · totals include child processes")
+                    Text([agents == 1 ? String(localized: "1 AI session") : String(localized: "\(agents) AI sessions"),
+                          others == 1 ? String(localized: "1 command") : String(localized: "\(others) commands"),
+                          String(localized: "totals include child processes")].joined(separator: " · "))
                         .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                 }
                 Spacer()
@@ -224,7 +233,7 @@ private struct GroupBlock: View {
                 .help(DevActivity.displayCommand(child))
             }
             if children.count > 3 {
-                Text("+ \(children.count - 3) more process\(children.count - 3 == 1 ? "" : "es")")
+                Text(children.count - 3 == 1 ? "+ 1 more process" : "+ \(children.count - 3) more processes")
                     .font(.lCaption).foregroundStyle(Theme.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 68).padding(.vertical, 6)
@@ -253,14 +262,17 @@ private struct GroupBlock: View {
 
     /// "4 h", "1 day", "12 min".
     static func shortDuration(_ seconds: TimeInterval) -> String {
-        if seconds >= 86_400 { let days = Int(seconds / 86_400); return "\(days) day\(days == 1 ? "" : "s")" }
-        if seconds >= 3600 { return "\(Int(seconds / 3600)) h" }
-        return "\(Int(seconds / 60)) min"
+        if seconds >= 86_400 {
+            let days = Int(seconds / 86_400)
+            return days == 1 ? String(localized: "1 day") : String(localized: "\(days) days")
+        }
+        if seconds >= 3600 { return String(localized: "\(Int(seconds / 3600)) h") }
+        return String(localized: "\(Int(seconds / 60)) min")
     }
 }
 
 private func cpuText(_ value: Double) -> String {
-    value < 0.05 ? "0" : value < 1 ? String(format: "%.1f", value) : "\(Int(value.rounded()))"
+    value < 0.05 ? "0" : value < 1 ? value.formatted(.number.precision(.fractionLength(1))) : "\(Int(value.rounded()))"
 }
 
 // MARK: - Servers & ports
@@ -274,7 +286,7 @@ private struct PortsCard: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Servers & ports").font(.lTitle3)
-                Text("\(ports.count) listening" + (exposed > 0 ? " · \(exposed) open to your network" : ""))
+                Text(exposed > 0 ? "\(ports.count) listening · \(exposed) open to your network" : "\(ports.count) listening")
                     .font(.lCaption).foregroundStyle(Theme.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -327,10 +339,10 @@ private struct PortsCard: View {
         }
         var parts: [String]
         switch group.kind {
-        case .orphan: parts = ["Orphan"]
+        case .orphan: parts = [String(localized: "Orphan")]
         case .agent(let name): parts = [name]
         case .terminal: parts = [group.title]
-        case .launchedBy(let app): parts = ["Started by \(app)"]
+        case .launchedBy(let app): parts = [String(localized: "Started by \(app)")]
         }
         if let folder = group.shortFolder { parts.append(folder) }
         if let running = row.process.runningTime { parts.append(ProcessAdvisor.formatHours(running)) }
@@ -364,7 +376,7 @@ private struct ContainersCard: View {
                         HStack(spacing: 8) {
                             Circle().fill(Theme.safe).frame(width: 6, height: 6)
                             Text(container.name).font(.lCaption)
-                            Text(String(format: "%.1f%%", container.cpuPercent)).font(.lCaption).foregroundStyle(Theme.textSecondary).monospacedDigit()
+                            Text(verbatim: container.cpuPercent.formatted(.number.precision(.fractionLength(1))) + "%").font(.lCaption).foregroundStyle(Theme.textSecondary).monospacedDigit()
                         }
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .background(Theme.sunken, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -398,7 +410,7 @@ struct StopGroupSheet: View {
                 row("Using", "\(cpuText(group.cpuPercent))% CPU · \(group.memory.formattedBytes)")
                 if let folder = group.folder { row("Folder", folder.abbreviatingHome) }
                 if !group.ports.isEmpty {
-                    row("Ports", group.ports.map { "\($0.port)\($0.exposed ? " (network)" : "")" }.joined(separator: ", "))
+                    row("Ports", group.ports.map { $0.exposed ? String(localized: "\(String($0.port)) (network)") : String($0.port) }.joined(separator: ", "))
                 }
                 if let running = group.root.runningTime { row("Running for", ProcessAdvisor.formatHours(running)) }
             }
@@ -427,17 +439,27 @@ struct StopGroupSheet: View {
 
     private var explanation: String {
         let others = group.members.count - 1
-        let started = others > 0 ? " and the \(others) process\(others == 1 ? "" : "es") it started" : ""
+        let what: String
         switch group.kind {
         case .agent(let name):
-            return "This ends the \(name) session" + (group.root.tty.map { " in \($0)" } ?? "") + started + ". Anything it was in the middle of stops, and its conversation in that terminal ends."
+            what = group.root.tty.map { String(localized: "This ends the \(name) session in \($0).") } ?? String(localized: "This ends the \(name) session.")
         case .terminal:
-            return "This stops the command running in " + (group.root.tty ?? "the terminal") + started + ". The terminal window stays open."
+            what = String(localized: "This stops the command running in \(group.root.tty ?? "the terminal").")
         case .orphan:
-            return "Nothing is using it any more: the terminal or agent session that started it has ended. This stops it" + started + "."
+            what = String(localized: "Nothing is using it any more: the terminal or agent session that started it has ended. This stops it.")
         case .launchedBy(let app):
-            return "This stops what \(app) started" + started + ". \(app) may start it again when it needs it."
+            what = String(localized: "This stops what \(app) started.")
         }
+        var parts = [what]
+        if others == 1 { parts.append(String(localized: "The process it started stops too.")) }
+        if others > 1 { parts.append(String(localized: "The \(others) processes it started stop too.")) }
+        switch group.kind {
+        case .agent: parts.append(String(localized: "Anything it was in the middle of stops, and its conversation in that terminal ends."))
+        case .terminal: parts.append(String(localized: "The terminal window stays open."))
+        case .launchedBy(let app): parts.append(String(localized: "\(app) may start it again when it needs it."))
+        case .orphan: break
+        }
+        return parts.joined(separator: " ")
     }
 
     @ViewBuilder private var note: some View {
@@ -456,7 +478,7 @@ struct StopGroupSheet: View {
         }
     }
 
-    private func row(_ label: String, _ value: String, first: Bool = false) -> some View {
+    private func row(_ label: LocalizedStringKey, _ value: String, first: Bool = false) -> some View {
         HStack {
             Text(label).font(.lCaption).foregroundStyle(Theme.textSecondary)
             Spacer()

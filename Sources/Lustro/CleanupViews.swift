@@ -8,17 +8,10 @@ struct CleanupView: View {
 
     var body: some View {
         if let catalog = app.catalog {
-            let scanner = JunkScanner(
-                catalog: catalog,
-                policy: app.settings.policy(),
-                hasFullDiskAccess: app.hasFullDiskAccess,
-                disabledCategories: Set(app.settings.disabledCategories),
-                keepNewestBackup: app.settings.keepNewestBackup
-            )
             ReviewView(model: model, module: "Cleanup", title: "Cleanup",
                        subtitle: "Caches, logs and leftovers from apps, developer tools and AI tools.",
                        symbol: Module.cleanup.symbol,
-                       scanner: { progress in await scanner.scan(progress: progress) }) {
+                       scanner: app.cleanupScanner(catalog: catalog)) {
                 if !app.hasFullDiskAccess { FullDiskAccessHint() }
             } accessory: {
                 HStack(spacing: 16) {
@@ -30,13 +23,13 @@ struct CleanupView: View {
                     let open = model.runningConflicts(with: ActionBar.runningApps())
                     StatusCard(symbol: open.isEmpty ? "checkmark.circle" : "exclamationmark.triangle",
                                tint: open.isEmpty ? Theme.safe : Theme.review,
-                               title: open.isEmpty ? "No open apps affected" : "\(open.count) app\(open.count == 1 ? " is" : "s are") open",
+                               title: open.isEmpty ? "No open apps affected" : open.count == 1 ? "1 app is open" : "\(open.count) apps are open",
                                detail: open.isEmpty ? "Nothing needs to quit" : "Their files wait until they quit")
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
         } else {
-            PanelPlaceholder(symbol: "exclamationmark.triangle", title: "Rules could not be loaded", message: app.catalogError ?? "") { EmptyView() }
+            PanelPlaceholder(symbol: "exclamationmark.triangle", title: "Rules could not be loaded", message: LocalizedStringKey(app.catalogError ?? "")) { EmptyView() }
         }
     }
 }
@@ -69,7 +62,7 @@ struct SummaryCard: View {
                 ForEach(Array(totals.enumerated()), id: \.element.name) { index, section in
                     HStack(spacing: 6) {
                         Circle().fill(Palette.sectionColor(index).opacity(section.selected > 0 ? 1 : 0.35)).frame(width: 8, height: 8)
-                        Text("\(section.name) \(section.total.formattedBytes)\(section.selected == 0 ? " · not selected" : "")")
+                        Text(section.selected == 0 ? "\(L(section.name)) \(section.total.formattedBytes) · not selected" : "\(L(section.name)) \(section.total.formattedBytes)")
                             .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                     }
                 }
@@ -84,8 +77,8 @@ struct SummaryCard: View {
 struct StatusCard: View {
     let symbol: String
     let tint: Color
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
 
     var body: some View {
         HStack(spacing: 12) {
@@ -119,7 +112,7 @@ struct DevPurgeView: View {
                    symbol: Module.devPurge.symbol,
                    scanner: { progress in await scanner.scan(progress: progress) },
                    activityDays: days) {
-            Text("Looks in " + roots.map { $0.path.abbreviatingHome }.joined(separator: " · "))
+            Text("Looks in \(roots.map { $0.path.abbreviatingHome }.joined(separator: " · "))")
                 .font(.lCaption).foregroundStyle(Theme.textSecondary)
         } accessory: {
             VStack(spacing: 16) {
@@ -129,7 +122,7 @@ struct DevPurgeView: View {
                     KPICard(label: "Rebuildable", value: number(model.totalSize), unit: unit(model.totalSize),
                             detail: "in \(model.groups.count) projects · \(model.allItems.count) folders",
                             bars: model.groups.prefix(5).map { Double($0.totalSize) }.reversed())
-                    KPICard(label: "Inactive \(days)+ days", value: "\(inactive.count)", unit: "projects",
+                    KPICard(label: "Inactive \(days)+ days", value: "\(inactive.count)", unit: inactive.count == 1 ? String(localized: "project") : String(localized: "projects"),
                             detail: "\(inactive.reduce(Int64(0)) { $0 + $1.totalSize }.formattedBytes) preselected")
                     KPICard(label: "Largest", value: largest.map { number($0.size) } ?? "–", unit: largest.map { unit($0.size) } ?? "",
                             detail: largest.map { "\($0.url.lastPathComponent) · \($0.url.deletingLastPathComponent().lastPathComponent)" } ?? "")
@@ -182,7 +175,7 @@ struct BackupStrip: View {
         if !excluded.isEmpty {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.safe)
-                Text("\(excluded.count) folder\(excluded.count == 1 ? "" : "s") excluded from Time Machine")
+                Text(excluded.count == 1 ? "1 folder excluded from Time Machine" : "\(excluded.count) folders excluded from Time Machine")
                     .font(.lCalloutStrong).foregroundStyle(Theme.safe)
                 Button("Undo") {
                     BackupExclusion.setExcluded(false, excluded)
@@ -201,7 +194,8 @@ struct BackupStrip: View {
                 Tile(symbol: "clock.arrow.circlepath", size: 40)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(size.formattedBytes) of rebuildable folders are in your Time Machine backups").font(.lBodyStrong)
-                    Text("\(kinds) in \(projects) project\(projects == 1 ? "" : "s"). They can be rebuilt, so backing them up only costs space and time. Nothing is deleted.")
+                    Text(projects == 1 ? "\(kinds) in 1 project. They can be rebuilt, so backing them up only costs space and time. Nothing is deleted."
+                         : "\(kinds) in \(projects) projects. They can be rebuilt, so backing them up only costs space and time. Nothing is deleted.")
                         .font(.lCaption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)

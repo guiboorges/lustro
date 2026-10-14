@@ -70,8 +70,8 @@ public enum RestoreError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .notInTrash(let p): "No longer in the Trash: \(p)"
-        case .originalOccupied(let p): "Something already exists at \(p)"
+        case .notInTrash(let p): String(localized: "No longer in the Trash: \(p)")
+        case .originalOccupied(let p): String(localized: "Something already exists at \(p)")
         }
     }
 }

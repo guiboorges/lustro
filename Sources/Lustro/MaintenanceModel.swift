@@ -184,15 +184,15 @@ final class MaintenanceModel {
             let outcome = await Task.detached { LocalSnapshots.thin() }.value
             await refreshTuneUps()
             result = outcome.ok
-                ? .done(before > purgeable ? "Freed \((before - purgeable).formattedBytes)" : "Nothing to thin right now")
+                ? .done(before > purgeable ? String(localized: "Freed \((before - purgeable).formattedBytes)") : String(localized: "Nothing to thin right now"))
                 : .failed(outcome.output.trimmingCharacters(in: .whitespacesAndNewlines))
         case .mail:
             if !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.mail").isEmpty {
-                result = .failed("Quit Mail first")
+                result = .failed(String(localized: "Quit Mail first"))
             } else {
                 let files = MailIndex.files()
                 if files.isEmpty {
-                    result = .failed("Needs Full Disk Access")
+                    result = .failed(String(localized: "Needs Full Disk Access"))
                 } else {
                     let before = MailIndex.size()
                     let error = await Task.detached { () -> String? in
@@ -205,13 +205,13 @@ final class MaintenanceModel {
                     }.value
                     await refreshTuneUps()
                     let saved = before - (mailIndexSize ?? before)
-                    result = error.map { .failed($0) } ?? .done(saved > 0 ? "Saved \(saved.formattedBytes)" : "Already compact")
+                    result = error.map { .failed($0) } ?? .done(saved > 0 ? String(localized: "Saved \(saved.formattedBytes)") : String(localized: "Already compact"))
                 }
             }
         case .dns:
-            result = await runAsAdmin(.flushDNS, done: "DNS cache cleared")
+            result = await runAsAdmin(.flushDNS, done: String(localized: "DNS cache cleared"))
         case .spotlight:
-            result = await runAsAdmin(.rebuildSpotlight, done: "Reindexing in the background")
+            result = await runAsAdmin(.rebuildSpotlight, done: String(localized: "Reindexing in the background"))
         }
         tuneUps[tuneUp] = result
     }
@@ -221,7 +221,7 @@ final class MaintenanceModel {
         let script = "do shell script \"\(task.command)\" with administrator privileges"
         let result = await Task.detached { Shell.run("/usr/bin/osascript", ["-e", script]) }.value
         if result.status == 0 { return .done(done) }
-        if result.output.contains("-128") { return .failed("Cancelled") }
+        if result.output.contains("-128") { return .failed(String(localized: "Cancelled")) }
         return .failed(result.output.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }

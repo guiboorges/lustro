@@ -41,7 +41,8 @@ public enum ProcessAdvisor {
 
     public static func advice(for sample: ProcessSample) -> ProcessAdvice {
         let cores = sample.cpuPercent / 100
-        let headline = "\(sample.name) is using " + (cores < 9.95 ? String(format: "%.1f cores", cores) : "\(Int(cores.rounded())) cores")
+        let coresText = cores < 9.95 ? cores.formatted(.number.precision(.fractionLength(1))) : "\(Int(cores.rounded()))"
+        let headline = String(localized: "\(sample.name) is using \(coresText) cores")
         let app = sample.appName
         let appBundleName = sample.appPath.map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension }
         let isBrowser = appBundleName.map { browsers.contains($0) } ?? false
@@ -49,30 +50,33 @@ public enum ProcessAdvisor {
 
         var parts: [String] = []
         if let running = sample.runningTime, running >= 3600 {
-            parts.append("Running for \(formatHours(running))" + (sample.averageCPUPercent >= 100 ? ", busy most of that time." : "."))
+            let time = formatHours(running)
+            parts.append(sample.averageCPUPercent >= 100 ? String(localized: "Running for \(time), busy most of that time.")
+                         : String(localized: "Running for \(time)."))
         }
         let detail: String
         let quitEffect: String
         let isGPU = sample.name.localizedCaseInsensitiveContains("GPU")
         switch (app, sample.isAppMain) {
         case (let app?, false) where isBrowser:
-            detail = "Usually one stuck tab with video, WebGL or animations. " + (isFirefox
-                ? "Closing it in about:processes keeps \(app) open."
-                : appBundleName == "Safari" ? "Closing the busy tab usually fixes it." : "Window ▸ Task Manager in \(app) shows which tab it is.")
+            detail = String(localized: "Usually one stuck tab with video, WebGL or animations.") + " " + (isFirefox
+                ? String(localized: "Closing it in about:processes keeps \(app) open.")
+                : appBundleName == "Safari" ? String(localized: "Closing the busy tab usually fixes it.")
+                : String(localized: "Window ▸ Task Manager in \(app) shows which tab it is."))
             quitEffect = isGPU
-                ? "It's the part of \(app) that draws pages on screen. \(app) starts a fresh one straight away: your tabs stay open, and the window may flicker for a moment."
-                : "It's a helper that runs tabs or extensions for \(app). The tabs it was running show an error until you reload them; \(app) itself stays open."
+                ? String(localized: "It's the part of \(app) that draws pages on screen. \(app) starts a fresh one straight away: your tabs stay open, and the window may flicker for a moment.")
+                : String(localized: "It's a helper that runs tabs or extensions for \(app). The tabs it was running show an error until you reload them; \(app) itself stays open.")
         case (let app?, false):
-            detail = "Part of \(app). An extension or open project is usually behind it, and reloading the window often fixes it."
+            detail = String(localized: "Part of \(app). An extension or open project is usually behind it, and reloading the window often fixes it.")
             quitEffect = isGPU
-                ? "It's the part of \(app) that draws on screen. \(app) starts a fresh one straight away: your windows stay open, and may flicker for a moment."
-                : "It's a helper process of \(app). \(app) usually starts a new one when it needs it; whatever it was running may need reloading."
+                ? String(localized: "It's the part of \(app) that draws on screen. \(app) starts a fresh one straight away: your windows stay open, and may flicker for a moment.")
+                : String(localized: "It's a helper process of \(app). \(app) usually starts a new one when it needs it; whatever it was running may need reloading.")
         case (let app?, true):
-            detail = "If \(app) isn't doing heavy work right now, quitting and reopening it usually fixes it."
-            quitEffect = "This quits \(app) itself. It gets the chance to ask about unsaved work first."
+            detail = String(localized: "If \(app) isn't doing heavy work right now, quitting and reopening it usually fixes it.")
+            quitEffect = String(localized: "This quits \(app) itself. It gets the chance to ask about unsaved work first.")
         case (nil, _):
-            detail = "A command-line process. If you didn't start something heavy, it may be stuck."
-            quitEffect = "Quitting stops it. If it was started from Terminal, that command ends."
+            detail = String(localized: "A command-line process. If you didn't start something heavy, it may be stuck.")
+            quitEffect = String(localized: "Quitting stops it. If it was started from Terminal, that command ends.")
         }
         parts.append(detail)
         return ProcessAdvice(headline: headline, detail: parts.joined(separator: " "), quitEffect: quitEffect,
@@ -82,9 +86,10 @@ public enum ProcessAdvisor {
     /// "39 hours", "2 days", "45 minutes".
     public static func formatHours(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds / 3600)
-        if hours >= 72 { return "\(hours / 24) days" }
-        if hours >= 1 { return "\(hours) hour\(hours == 1 ? "" : "s")" }
+        if hours >= 72 { return String(localized: "\(hours / 24) days") }
+        if hours == 1 { return String(localized: "1 hour") }
+        if hours > 1 { return String(localized: "\(hours) hours") }
         let minutes = max(Int(seconds / 60), 1)
-        return "\(minutes) minute\(minutes == 1 ? "" : "s")"
+        return minutes == 1 ? String(localized: "1 minute") : String(localized: "\(minutes) minutes")
     }
 }
