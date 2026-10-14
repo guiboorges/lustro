@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import LimpoCore
+@testable import LustroCore
 
 @Suite struct ProtectionFlagTests {
     @Test func lockedFilesAreRefused() throws {
@@ -107,5 +107,15 @@ import Testing
         #expect(kept.map(\.url.lastPathComponent) == ["b"])
         #expect(kept.first?.note?.hasPrefix("iPhone · ") == true)
         #expect(DeviceBackups.label(items, keepNewest: false).count == 3)
+    }
+}
+
+@Suite struct RenameMigrationTests {
+    @Test func movesSettingsFromPreviousName() throws {
+        let home = try FakeHome()
+        try home.file("Library/Application Support/Limpo/settings.json", bytes: 2)
+        LustroSettings.migrateFromPreviousName(home: home.url)
+        #expect(FileManager.default.fileExists(atPath: home.url.appendingPathComponent("Library/Application Support/Lustro/settings.json").path))
+        #expect(!FileManager.default.fileExists(atPath: home.url.appendingPathComponent("Library/Application Support/Limpo").path))
     }
 }

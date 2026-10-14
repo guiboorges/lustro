@@ -15,4 +15,4 @@ jobs:
       - name: Test
         run: swift test
       - name: Validate rules.json
-        run: python3 -c "import json; json.load(open('Sources/LimpoCore/Resources/rules.json'))"
+        run: python3 -c "import json; json.load(open('Sources/LustroCore/Resources/rules.json'))"

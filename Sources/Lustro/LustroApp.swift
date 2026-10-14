@@ -1,9 +1,9 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import SwiftUI
 
 @main
-struct LimpoApp: App {
+struct LustroApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var app = AppModel()
 

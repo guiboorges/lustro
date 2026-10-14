@@ -17,10 +17,10 @@ jobs:
       - name: Build app
         run: scripts/build-app.sh "${GITHUB_REF_NAME#v}"
       - name: Package
-        run: cd build && ditto -c -k --keepParent Limpo.app Limpo.zip && shasum -a 256 Limpo.zip > Limpo.zip.sha256
+        run: cd build && ditto -c -k --keepParent Lustro.app Lustro.zip && shasum -a 256 Lustro.zip > Lustro.zip.sha256
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/Limpo.zip build/Limpo.zip.sha256 \
-            --title "Limpo $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" build/Lustro.zip build/Lustro.zip.sha256 \
+            --title "Lustro $GITHUB_REF_NAME" --generate-notes

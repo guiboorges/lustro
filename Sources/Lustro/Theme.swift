@@ -1,7 +1,7 @@
-import LimpoCore
+import LustroCore
 import SwiftUI
 
-/// Accent colours referenced by name from rules.json and the design (Figma "Limpo Colors").
+/// Accent colours referenced by name from rules.json and the design (Figma "Lustro Colors").
 enum Palette {
     static func color(_ name: String?) -> Color {
         switch name {

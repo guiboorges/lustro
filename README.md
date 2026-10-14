@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/icon.png" width="128" alt="Limpo icon"></p>
+<p align="center"><img src="docs/icon.png" width="128" alt="Lustro icon"></p>
 
-<h1 align="center">Limpo</h1>
+<h1 align="center">Lustro</h1>
 
 <p align="center">A free, open-source Mac cleaner that shows you exactly what it removes.<br>
 Native SwiftUI · no network access · no telemetry · moves to Trash by default.</p>
@@ -21,12 +21,12 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 
 ## Safety first
 
-Cleaning tools delete things. Limpo is designed so that a mistake is hard to make and easy to undo:
+Cleaning tools delete things. Lustro is designed so that a mistake is hard to make and easy to undo:
 
 - **Trash by default.** Everything goes to the Trash unless you switch to permanent deletion in Settings.
 - **Review before removing.** Nothing is removed without a confirmation that shows the item count and size. Every item has a **Why?** button that lists the checks it passed (owner app, age, rule, protections), and can be revealed in Finder or ignored forever.
 - **Undo from History.** Every run is recorded on your Mac. Items still in the Trash can be put back where they were with one click.
-- **Open apps are respected.** Files of apps that are running are held back until you quit them (Limpo can quit and reopen them for you).
+- **Open apps are respected.** Files of apps that are running are held back until you quit them (Lustro can quit and reopen them for you).
 - **Dry run mode** shows what would be removed without touching anything.
 - **Protected locations.** Your home folder, Documents, Desktop, `~/Library` itself, `/System`, `/usr` and similar folders are never removed. Keychains, SSH keys, Mail, Messages, Safari, Photos and iCloud Drive are never touched at any depth.
 - **Re-validated at removal time.** Each path is checked again right before removal. Symlinks are never followed, so a link can't redirect a removal outside the allowed folders. Locked, SIP-protected and iCloud-only files are skipped, never force-unlocked.
@@ -37,16 +37,16 @@ Cleaning tools delete things. Limpo is designed so that a mistake is hard to mak
 
 ## Privacy
 
-Limpo makes **no network requests**. It has no analytics, no crash reporter, no remote configuration and no account. Your settings live in `~/Library/Application Support/Limpo/settings.json`.
+Lustro makes **no network requests**. It has no analytics, no crash reporter, no remote configuration and no account. Your settings live in `~/Library/Application Support/Lustro/settings.json`.
 
 ## Install
 
 ### Download
 
-1. Get `Limpo.zip` from [Releases](../../releases) and move `Limpo.app` to `/Applications`.
+1. Get `Lustro.zip` from [Releases](../../releases) and move `Lustro.app` to `/Applications`.
 2. Releases are not notarized by Apple yet, so macOS will block the first launch. Allow it once:
    ```sh
-   xattr -dr com.apple.quarantine /Applications/Limpo.app
+   xattr -dr com.apple.quarantine /Applications/Lustro.app
    ```
    Alternatively, try to open it, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
@@ -55,40 +55,40 @@ Limpo makes **no network requests**. It has no analytics, no crash reporter, no 
 Requires macOS 14+ and Xcode 16+.
 
 ```sh
-git clone https://github.com/guiboorges/limpo.git
-cd limpo
-scripts/build-app.sh        # creates build/Limpo.app
-open build/Limpo.app
+git clone https://github.com/guiboorges/lustro.git
+cd lustro
+scripts/build-app.sh        # creates build/Lustro.app
+open build/Lustro.app
 ```
 
 Run the tests with `swift test`.
 
 ### Full Disk Access (optional)
 
-Some categories live in protected folders: sandboxed app caches, Mail downloads and iPhone backups. To include them, add Limpo under **System Settings → Privacy & Security → Full Disk Access**. Without it, those categories are skipped instead of flooding you with permission prompts.
+Some categories live in protected folders: sandboxed app caches, Mail downloads and iPhone backups. To include them, add Lustro under **System Settings → Privacy & Security → Full Disk Access**. Without it, those categories are skipped instead of flooding you with permission prompts.
 
 ## Adding cleaning rules
 
-Cleanup rules live in [`Sources/LimpoCore/Resources/rules.json`](Sources/LimpoCore/Resources/rules.json), so you can add support for an app without writing Swift. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Cleanup rules live in [`Sources/LustroCore/Resources/rules.json`](Sources/LustroCore/Resources/rules.json), so you can add support for an app without writing Swift. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project layout
 
 ```
-Sources/LimpoCore   scanning, safety policy and removal (no UI; fully tested)
-Sources/Limpo       SwiftUI app
+Sources/LustroCore   scanning, safety policy and removal (no UI; fully tested)
+Sources/Lustro       SwiftUI app
 Tests               unit tests, run against a throwaway fake home folder
 scripts             app bundle and icon builders
 ```
 
 ## Disclaimer
 
-Limpo is an independent project and is not affiliated with any commercial Mac cleaner. Use it at your own risk; the defaults are conservative, but always review what you remove. Licensed under the [MIT License](LICENSE).
+Lustro is an independent project and is not affiliated with any commercial Mac cleaner. Use it at your own risk; the defaults are conservative, but always review what you remove. Licensed under the [MIT License](LICENSE).
 
 ---
 
 ## Português
 
-**Limpo** é um limpador para Mac gratuito e de código aberto que mostra exatamente o que vai remover. É uma app nativa em SwiftUI, não faz ligações à rede, não tem telemetria e manda tudo para o Lixo por omissão.
+**Lustro** é um limpador para Mac gratuito e de código aberto que mostra exatamente o que vai remover. É uma app nativa em SwiftUI, não faz ligações à rede, não tem telemetria e manda tudo para o Lixo por omissão.
 
 - **Limpeza:** caches e logs de apps, Xcode, gestores de pacotes, editores e ferramentas de IA (Claude Code, Codex, Cursor…), atualizações e backups de iOS, instaladores e o Lixo.
 - **Dev Purge:** `node_modules`, `target`, `.venv`, `.next` e outros artefactos de projetos que podem ser reconstruídos. Só aparecem quando existe um ficheiro de projeto que prove o que são.
@@ -104,6 +104,6 @@ Limpo is an independent project and is not affiliated with any commercial Mac cl
 
 **Privacidade:** zero pedidos de rede, sem analytics nem configuração remota.
 
-**Instalar:** descarrega `Limpo.zip` em [Releases](../../releases). Depois, corre `xattr -dr com.apple.quarantine /Applications/Limpo.app`, ou compila tu mesmo com `scripts/build-app.sh`.
+**Instalar:** descarrega `Lustro.zip` em [Releases](../../releases). Depois, corre `xattr -dr com.apple.quarantine /Applications/Lustro.app`, ou compila tu mesmo com `scripts/build-app.sh`.
 
 **Contribuir:** as regras de limpeza estão em `rules.json`. Vê o [CONTRIBUTING.md](CONTRIBUTING.md).

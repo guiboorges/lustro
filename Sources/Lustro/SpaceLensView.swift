@@ -1,5 +1,5 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import Observation
 import SwiftUI
 

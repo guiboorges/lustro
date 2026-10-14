@@ -2,25 +2,25 @@
 import PackageDescription
 
 let package = Package(
-    name: "Limpo",
+    name: "Lustro",
     defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "Limpo", targets: ["Limpo"]),
-        .library(name: "LimpoCore", targets: ["LimpoCore"]),
+        .executable(name: "Lustro", targets: ["Lustro"]),
+        .library(name: "LustroCore", targets: ["LustroCore"]),
     ],
     targets: [
         .target(
-            name: "LimpoCore",
+            name: "LustroCore",
             resources: [.process("Resources")]
         ),
         .executableTarget(
-            name: "Limpo",
-            dependencies: ["LimpoCore"]
+            name: "Lustro",
+            dependencies: ["LustroCore"]
         ),
         .testTarget(
-            name: "LimpoCoreTests",
-            dependencies: ["LimpoCore"]
+            name: "LustroCoreTests",
+            dependencies: ["LustroCore"]
         ),
     ]
 )

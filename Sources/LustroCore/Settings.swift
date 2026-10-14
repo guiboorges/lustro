@@ -10,8 +10,8 @@ public enum PreselectionMode: String, Codable, Sendable, CaseIterable {
     case allSafe
 }
 
-/// User settings, persisted as JSON in `~/Library/Application Support/Limpo/settings.json`.
-public struct LimpoSettings: Codable, Equatable, Sendable {
+/// User settings, persisted as JSON in `~/Library/Application Support/Lustro/settings.json`.
+public struct LustroSettings: Codable, Equatable, Sendable {
     public var removalMode: RemovalMode = .trash
     public var dryRun: Bool = false
     public var reopenAppsAfterCleaning: Bool = true
@@ -29,12 +29,22 @@ public struct LimpoSettings: Codable, Equatable, Sendable {
 
     public static var fileURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Limpo/settings.json")
+            .appendingPathComponent("Library/Application Support/Lustro/settings.json")
     }
 
-    public static func load(from url: URL = fileURL) -> LimpoSettings {
+    /// Moves settings and history saved under the project's former name ("Limpo").
+    public static func migrateFromPreviousName(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+        let support = home.appendingPathComponent("Library/Application Support")
+        let old = support.appendingPathComponent("Limpo")
+        let new = support.appendingPathComponent("Lustro")
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { return }
+        try? fm.moveItem(at: old, to: new)
+    }
+
+    public static func load(from url: URL = fileURL) -> LustroSettings {
         guard let data = try? Data(contentsOf: url),
-              let settings = try? JSONDecoder().decode(LimpoSettings.self, from: data) else { return LimpoSettings() }
+              let settings = try? JSONDecoder().decode(LustroSettings.self, from: data) else { return LustroSettings() }
         return settings
     }
 
@@ -59,7 +69,7 @@ public struct LimpoSettings: Codable, Equatable, Sendable {
 }
 
 // Tolerate settings files written by older versions that lack newer keys.
-extension LimpoSettings {
+extension LustroSettings {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init()

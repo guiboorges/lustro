@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import LimpoCore
+@testable import LustroCore
 
 @Suite struct AppOwnershipTests {
     let home = URL(fileURLWithPath: "/Users/test")

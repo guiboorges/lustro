@@ -426,7 +426,7 @@
             "*DriveFS*",
             "com.google.drivefs*",
             "com.box.desktop*",
-            "io.github.guiboorges.limpo*"
+            "io.github.guiboorges.lustro*"
           ]
         }
       ]

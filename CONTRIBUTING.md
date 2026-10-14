@@ -1,10 +1,10 @@
-# Contributing to Limpo
+# Contributing to Lustro
 
-Thanks for helping! The most useful contributions are **new cleaning rules** and **bug reports about anything Limpo removed that it shouldn't have**. The second kind is treated as the highest priority.
+Thanks for helping! The most useful contributions are **new cleaning rules** and **bug reports about anything Lustro removed that it shouldn't have**. The second kind is treated as the highest priority.
 
 ## Adding a cleanup rule
 
-Rules live in `Sources/LimpoCore/Resources/rules.json`. Each category looks like this:
+Rules live in `Sources/LustroCore/Resources/rules.json`. Each category looks like this:
 
 ```json
 {
@@ -42,18 +42,18 @@ Rules live in `Sources/LimpoCore/Resources/rules.json`. Each category looks like
 
 ## Dev Purge artifacts
 
-Artifact rules are in `Sources/LimpoCore/ProjectArtifactScanner.swift` (`ArtifactRule.defaults`). Every generic folder name must require a **sibling marker file** that proves which ecosystem it belongs to.
+Artifact rules are in `Sources/LustroCore/ProjectArtifactScanner.swift` (`ArtifactRule.defaults`). Every generic folder name must require a **sibling marker file** that proves which ecosystem it belongs to.
 
 ## Code
 
-- `LimpoCore` holds all logic that touches the file system. Changes there need tests, written against `FakeHome` (see `Tests/LimpoCoreTests/SafetyTests.swift`). Never test against the real home folder.
+- `LustroCore` holds all logic that touches the file system. Changes there need tests, written against `FakeHome` (see `Tests/LustroCoreTests/SafetyTests.swift`). Never test against the real home folder.
 - Any change to `SafetyPolicy` needs a test that shows what is still refused.
 - The app makes no network requests. Please keep it that way.
 
 ## Screenshots
 
 ```sh
-LIMPO_SNAPSHOT=/tmp/shot.png LIMPO_MODULE=devPurge LIMPO_AUTOSCAN=1 build/Limpo.app/Contents/MacOS/Limpo
+LUSTRO_SNAPSHOT=/tmp/shot.png LUSTRO_MODULE=devPurge LUSTRO_AUTOSCAN=1 build/Lustro.app/Contents/MacOS/Lustro
 ```
 
 This renders the window to a PNG and quits. Check screenshots for personal paths before you share them.
@@ -63,5 +63,5 @@ This renders the window to a PNG and quits. Check screenshots for personal paths
 If `swift test` fails with `resource fork, Finder information, or similar detritus not allowed`, the project probably lives in a folder that Finder or iCloud tags with metadata, such as `~/Documents`. Build outside it:
 
 ```sh
-swift test --scratch-path /tmp/limpo-build
+swift test --scratch-path /tmp/lustro-build
 ```

@@ -1,5 +1,5 @@
 import Foundation
-import LimpoCore
+import LustroCore
 import Observation
 
 struct AppConflict: Identifiable {

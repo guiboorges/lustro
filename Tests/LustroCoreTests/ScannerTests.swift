@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import LimpoCore
+@testable import LustroCore
 
 @Suite struct JunkScannerTests {
     func catalog(_ json: String) throws -> RuleCatalog {

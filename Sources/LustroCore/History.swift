@@ -10,7 +10,7 @@ public struct HistoryEntry: Codable, Identifiable, Sendable, Equatable {
     public let mode: RemovalMode
     public let dryRun: Bool
     public var items: [HistoryItem]
-    /// Names of apps Limpo asked to quit before this run.
+    /// Names of apps Lustro asked to quit before this run.
     public var quitApps: [String]
 
     public init(id: UUID = UUID(), date: Date = Date(), module: String, mode: RemovalMode, dryRun: Bool,
@@ -76,7 +76,7 @@ public enum RestoreError: Error, CustomStringConvertible {
     }
 }
 
-/// Removal history kept on this Mac only, in `~/Library/Application Support/Limpo/history.json`.
+/// Removal history kept on this Mac only, in `~/Library/Application Support/Lustro/history.json`.
 public final class HistoryStore: @unchecked Sendable {
     public let fileURL: URL
     public let limit: Int
@@ -84,7 +84,7 @@ public final class HistoryStore: @unchecked Sendable {
 
     public static var defaultURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Limpo/history.json")
+            .appendingPathComponent("Library/Application Support/Lustro/history.json")
     }
 
     public init(fileURL: URL = HistoryStore.defaultURL, limit: Int = 200) {

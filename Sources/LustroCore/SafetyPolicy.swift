@@ -16,8 +16,8 @@ public enum SafetyViolation: Error, Equatable, Sendable, CustomStringConvertible
         switch self {
         case .notAbsolute(let p): "Path is not absolute: \(p)"
         case .protectedPath(let p): "Protected location, never removed: \(p)"
-        case .insideDeniedLocation(let p): "Inside a location Limpo never touches: \(p)"
-        case .outsideAllowedRoots(let p): "Outside the folders Limpo is allowed to clean: \(p)"
+        case .insideDeniedLocation(let p): "Inside a location Lustro never touches: \(p)"
+        case .outsideAllowedRoots(let p): "Outside the folders Lustro is allowed to clean: \(p)"
         case .ignoredByUser(let p): "On your ignore list: \(p)"
         case .notOwnedByUser(let p): "Not owned by you: \(p)"
         case .missing(let p): "No longer exists: \(p)"
@@ -74,7 +74,7 @@ public struct SafetyPolicy: Sendable {
         let homeRelative = ["Library/Keychains", ".ssh", ".gnupg", "Library/Mobile Documents",
                             "Library/CloudStorage", "Library/Mail", "Library/Messages", "Library/Safari",
                             "Library/Accounts", "Library/Photos", "Pictures/Photos Library.photoslibrary",
-                            "Library/Application Support/Limpo"]
+                            "Library/Application Support/Lustro"]
         return system + homeRelative.map { home.appendingPathComponent($0).path }
     }
 
@@ -134,7 +134,7 @@ public struct SafetyPolicy: Sendable {
     }
 
     /// Flags that mean "leave this alone": system integrity protection, locked files and
-    /// iCloud placeholders whose data is not on this Mac. Unlike some cleaners, Limpo never
+    /// iCloud placeholders whose data is not on this Mac. Unlike some cleaners, Lustro never
     /// clears these flags to force a removal.
     static let lockedFlags = UInt32(UF_IMMUTABLE) | UInt32(SF_IMMUTABLE) | UInt32(SF_RESTRICTED) | UInt32(UF_APPEND) | UInt32(SF_APPEND)
     static let datalessFlag: UInt32 = 0x4000_0000 // SF_DATALESS

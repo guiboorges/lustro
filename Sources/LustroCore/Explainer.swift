@@ -13,7 +13,7 @@ public struct Reason: Hashable, Sendable {
 }
 
 /// Builds human-readable reasons for why an item was offered for removal.
-/// Every reason is derived from data Limpo actually checked; nothing is guessed.
+/// Every reason is derived from data Lustro actually checked; nothing is guessed.
 public struct Explainer: Sendable {
     public let policy: SafetyPolicy
     public let now: Date

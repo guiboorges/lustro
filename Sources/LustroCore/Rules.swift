@@ -16,7 +16,7 @@ public struct RuleCatalog: Codable, Sendable {
     /// Looks inside an app's `Contents/Resources` first, where `build-app.sh` places the
     /// SwiftPM resource bundle, then falls back to SwiftPM's own lookup for `swift run`/tests.
     static var resourceBundle: Bundle {
-        let name = "Limpo_LimpoCore.bundle"
+        let name = "Lustro_LustroCore.bundle"
         for base in [Bundle.main.resourceURL, Bundle.main.bundleURL] {
             if let base, let bundle = Bundle(url: base.appendingPathComponent(name)) { return bundle }
         }

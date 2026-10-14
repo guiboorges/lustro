@@ -1,5 +1,5 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import SwiftUI
 
 struct SettingsView: View {
@@ -21,7 +21,7 @@ struct SettingsView: View {
                 }
                 .toggleStyle(.switch)
                 Toggle(isOn: $app.settings.reopenAppsAfterCleaning) {
-                    LabeledText("Reopen apps after cleaning", "Apps Limpo asked to quit are reopened in the background.")
+                    LabeledText("Reopen apps after cleaning", "Apps Lustro asked to quit are reopened in the background.")
                 }
                 .toggleStyle(.switch)
             }

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import LimpoCore
+@testable import LustroCore
 
 /// A throwaway home folder so tests never touch the real one.
 final class FakeHome {
@@ -8,7 +8,7 @@ final class FakeHome {
 
     init() throws {
         url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("limpo-tests-\(UUID().uuidString)")
+            .appendingPathComponent("lustro-tests-\(UUID().uuidString)")
             .resolvingSymlinksInPath()
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }

@@ -1,6 +1,6 @@
 import AppKit
 import CoreServices
-import LimpoCore
+import LustroCore
 import Observation
 import SwiftUI
 

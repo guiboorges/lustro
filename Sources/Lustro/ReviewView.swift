@@ -1,5 +1,5 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import SwiftUI
 
 /// Header + scan/review list + action bar, shared by Cleanup and Dev Purge.
@@ -442,7 +442,7 @@ struct ActionBar: View {
         }
     }
 
-    /// Reopens apps Limpo asked to quit, in the background, if the user wants that.
+    /// Reopens apps Lustro asked to quit, in the background, if the user wants that.
     private func reopenQuitApps() {
         defer { quitApps = [] }
         guard app.settings.reopenAppsAfterCleaning else { return }
@@ -493,7 +493,7 @@ struct RunningAppsSheet: View {
                     .foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Some apps are open").font(.title3.weight(.semibold))
-                    Text("Removing files of an app while it runs can make it misbehave until it restarts. Quit these apps first\(reopens ? " — Limpo reopens them when it's done —" : "") or leave their files for now.")
+                    Text("Removing files of an app while it runs can make it misbehave until it restarts. Quit these apps first\(reopens ? " — Lustro reopens them when it's done —" : "") or leave their files for now.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

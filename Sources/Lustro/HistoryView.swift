@@ -1,8 +1,8 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import SwiftUI
 
-/// Everything Limpo removed, with one-click restore for items still in the Trash.
+/// Everything Lustro removed, with one-click restore for items still in the Trash.
 struct HistoryView: View {
     @Environment(AppModel.self) private var app
     @State private var expanded = Set<UUID>()
@@ -10,7 +10,7 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ModuleHeader(title: "History", subtitle: "Everything Limpo removed. Items still in the Trash can be put back where they were.",
+            ModuleHeader(title: "History", subtitle: "Everything Lustro removed. Items still in the Trash can be put back where they were.",
                          symbol: "clock.arrow.circlepath", tint: Module.history.tint) {
                 Button("Open Trash") {
                     NSWorkspace.shared.open(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash"))
@@ -19,6 +19,7 @@ struct HistoryView: View {
             if app.historyEntries.isEmpty {
                 ContentUnavailableView("No removals yet", systemImage: "clock",
                                        description: Text("When you clean something, it shows up here so you can undo it."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
@@ -47,7 +48,7 @@ struct HistoryView: View {
             }
             HStack(spacing: 8) {
                 Image(systemName: "folder").foregroundStyle(.secondary)
-                Text("History is stored only on this Mac, in ~/Library/Application Support/Limpo/history.json.")
+                Text("History is stored only on this Mac, in ~/Library/Application Support/Lustro/history.json.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
             }

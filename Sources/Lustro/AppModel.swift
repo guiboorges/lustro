@@ -1,11 +1,11 @@
 import AppKit
-import LimpoCore
+import LustroCore
 import Observation
 
 /// App-wide state: settings, permissions, rule catalog, removal history and disk usage.
 @MainActor @Observable
 final class AppModel {
-    var settings: LimpoSettings {
+    var settings: LustroSettings {
         didSet {
             guard settings != oldValue else { return }
             try? settings.save()
@@ -19,7 +19,8 @@ final class AppModel {
     private(set) var disk: (total: Int64, available: Int64)?
 
     init() {
-        settings = LimpoSettings.load()
+        LustroSettings.migrateFromPreviousName()
+        settings = LustroSettings.load()
         do {
             catalog = try RuleCatalog.bundled()
             catalogError = nil
