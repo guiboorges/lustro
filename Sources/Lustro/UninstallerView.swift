@@ -164,7 +164,7 @@ struct UninstallerView: View {
                     }
                     ReviewList(model: model.review)
                     ActionBar(model: model.review, module: "Uninstaller", extraAllowedRoots: Uninstaller().searchRoots,
-                              actionTitle: "Uninstall") { removed in model.appRemoved(removed) }
+                              usesFinderForSystemApps: true, actionTitle: "Uninstall") { removed in model.appRemoved(removed) }
                 }
             }
         } else {

@@ -19,11 +19,24 @@ def escape(text):
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
+# Info.plist text macOS shows in its own dialogs, keyed by the English text in build-app.sh.
+INFO_PLIST = {
+    "NSAppleEventsUsageDescription":
+        "Lustro asks Finder to move apps installed by the App Store to the Trash. Finder then asks for your password.",
+}
+
+
+def strings(table):
+    return "\n".join(f'"{escape(k)}" = "{escape(v)}";' for k, v in sorted(table.items())) + "\n"
+
+
 def write(language, table):
     folder = out / f"{language}.lproj"
     folder.mkdir(parents=True, exist_ok=True)
-    lines = [f'"{escape(k)}" = "{escape(v)}";' for k, v in sorted(table.items())]
-    (folder / "Localizable.strings").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (folder / "Localizable.strings").write_text(strings(table), encoding="utf-8")
+    info = {key: table[text] for key, text in INFO_PLIST.items() if text in table}
+    if info:
+        (folder / "InfoPlist.strings").write_text(strings(info), encoding="utf-8")
 
 
 write("en", {})

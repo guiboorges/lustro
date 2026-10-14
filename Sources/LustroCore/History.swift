@@ -68,12 +68,14 @@ public enum RestoreError: Error, CustomStringConvertible {
     case notInTrash(String)
     case originalOccupied(String)
     case unsafeDestination(String, SafetyViolation)
+    case systemApp(String)
 
     public var description: String {
         switch self {
         case .notInTrash(let p): String(localized: "No longer in the Trash: \(p)")
         case .originalOccupied(let p): String(localized: "Something already exists at \(p)")
         case .unsafeDestination(_, let why): why.description
+        case .systemApp: String(localized: "Installed by the App Store, so only Finder can put it back: open the Trash, select it and choose Put Back.")
         }
     }
 }
@@ -138,6 +140,11 @@ public final class HistoryStore: @unchecked Sendable {
                         throw RestoreError.originalOccupied(item.originalPath)
                     }
                     let original = URL(fileURLWithPath: item.originalPath)
+                    // Apps trashed through Finder still belong to root; Finder's Put Back can return them, Lustro can't.
+                    var info = stat()
+                    if original.pathExtension.lowercased() == "app", lstat(trashed, &info) == 0, info.st_uid == 0 {
+                        throw RestoreError.systemApp(item.originalPath)
+                    }
                     do throws(SafetyViolation) { try policy.validateDestination(original) } catch {
                         throw RestoreError.unsafeDestination(item.originalPath, error)
                     }

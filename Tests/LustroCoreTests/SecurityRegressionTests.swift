@@ -227,6 +227,24 @@ import Testing
         #expect(support.items.contains { $0.url.lastPathComponent == "com.example.victim" })
     }
 
+    // MARK: Apps that belong to root
+
+    /// Finder (and the password dialog) is only for real app folders owned by root inside an applications folder.
+    @Test func onlyRootOwnedAppFoldersGoThroughFinder() throws {
+        let home = try FakeHome()
+        let apps = try home.dir("Applications")
+        try home.file("Applications/Mine.app/Contents/Info.plist")
+        try FileManager.default.createSymbolicLink(at: apps.appendingPathComponent("Link.app"),
+                                                   withDestinationURL: URL(fileURLWithPath: "/System/Applications/Calculator.app"))
+        #expect(!FinderTrash.isEligible(apps.appendingPathComponent("Mine.app"), roots: [apps]))
+        #expect(!FinderTrash.isEligible(apps.appendingPathComponent("Link.app"), roots: [apps]))
+
+        let calculator = URL(fileURLWithPath: "/System/Applications/Calculator.app")
+        #expect(!FinderTrash.isEligible(calculator))
+        #expect(FinderTrash.isEligible(calculator, roots: [URL(fileURLWithPath: "/System/Applications")]))
+        #expect(!FinderTrash.isEligible(URL(fileURLWithPath: "/System/Applications"), roots: [URL(fileURLWithPath: "/System")]))
+    }
+
     // MARK: Knowledge base
 
     @Test func unreadableKnowledgeBaseProtectsEverything() {

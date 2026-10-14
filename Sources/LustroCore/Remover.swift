@@ -24,6 +24,14 @@ public struct RemovalReport: Sendable {
     public var freedBytes: Int64 { removed.reduce(0) { $0 + $1.size } }
 }
 
+enum SystemAppError: Error, CustomStringConvertible {
+    case trashOnly
+
+    var description: String {
+        String(localized: "Installed by the App Store, so it belongs to the system and can only be moved to the Trash. Choose Move to Trash in Settings and try again.")
+    }
+}
+
 /// Removes items after re-validating each one against the safety policy.
 public struct Remover: Sendable {
     public let policy: SafetyPolicy
@@ -31,12 +39,16 @@ public struct Remover: Sendable {
     public let dryRun: Bool
     /// Skip items another process has open (a running dev server's node_modules, a log being written…).
     public let skipOpenFiles: Bool
+    /// Ask Finder (and so the user's password) for app bundles that belong to root. See `FinderTrash`.
+    public let usesFinderForSystemApps: Bool
 
-    public init(policy: SafetyPolicy, mode: RemovalMode = .trash, dryRun: Bool = false, skipOpenFiles: Bool = true) {
+    public init(policy: SafetyPolicy, mode: RemovalMode = .trash, dryRun: Bool = false, skipOpenFiles: Bool = true,
+                usesFinderForSystemApps: Bool = false) {
         self.policy = policy
         self.mode = mode
         self.dryRun = dryRun
         self.skipOpenFiles = skipOpenFiles
+        self.usesFinderForSystemApps = usesFinderForSystemApps
     }
 
     public func remove(_ items: [ScanItem], progress: ProgressHandler? = nil) async -> RemovalReport {
@@ -74,14 +86,23 @@ public struct Remover: Sendable {
                 switch alreadyInTrash ? .permanent : mode {
                 case .trash:
                     var resulting: NSURL?
-                    try fileManager.trashItem(at: item.url, resultingItemURL: &resulting)
+                    do {
+                        try fileManager.trashItem(at: item.url, resultingItemURL: &resulting)
+                    } catch where usesFinderForSystemApps && FinderTrash.isEligible(item.url) {
+                        let url = item.url
+                        resulting = try await MainActor.run { FinderTrash.trash(url) }.get() as NSURL?
+                        guard FileID(of: item.url) == nil else { throw FinderTrashError.failed(item.url.path) }
+                    }
                     if let resulting { report.trashLocations[item.id] = resulting as URL }
                 case .permanent:
+                    if usesFinderForSystemApps && FinderTrash.isEligible(item.url) { throw SystemAppError.trashOnly }
                     try fileManager.removeItem(at: item.url)
                 }
                 report.removed.append(item)
             } catch {
-                report.failures.append(RemovalFailure(url: item.url, reason: error.localizedDescription))
+                let reason = (error as? FinderTrashError)?.description ?? (error as? SystemAppError)?.description
+                    ?? error.localizedDescription
+                report.failures.append(RemovalFailure(url: item.url, reason: reason))
             }
         }
         progress?(ScanProgress(message: "Done", fraction: 1))

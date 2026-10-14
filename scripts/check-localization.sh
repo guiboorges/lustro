@@ -23,6 +23,8 @@ for c in rules["categories"]:
 for app in json.load(open("Sources/LustroCore/Resources/apps.json"))["apps"]:
     keys.add(app["why"])
 keys.update(["Projects", "Looking for support files…", "Done"])
+# Info.plist text (see INFO_PLIST in build-localization.py).
+keys.add("Lustro asks Finder to move apps installed by the App Store to the Trash. Finder then asks for your password.")
 keys.discard("")
 status = 0
 for source in sorted(pathlib.Path("Localization").glob("*.json")):

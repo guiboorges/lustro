@@ -68,7 +68,7 @@ Cleaning tools delete things. Lustro is designed so that a mistake is hard to ma
 - **Command lines are redacted, best effort.** Tokens, passwords, API keys and credentials in URLs are masked before anything is shown or copied. Not every secret can be recognised, so read a copied report before sharing it publicly.
 - **Tune-ups that change data ask first.** Removing local Time Machine snapshots (they are backups) and compacting Mail's index both need a confirmation. Mail's index is cloned before it's compacted and only discarded once the result passes SQLite's integrity check.
 - **Tamper-resistant build.** Releases use the hardened runtime, so no other program can load code into Lustro and borrow its permissions, and Lustro ignores its cleaning rules if its files no longer match the signature. Container stats are read from the Docker socket; Lustro never runs a `docker` program it finds on disk.
-- **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog; Lustro doesn't install a privileged helper.
+- **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog. Apps installed by the App Store belong to the system, so the Uninstaller asks Finder to move them to the Trash and Finder asks for your password. Lustro doesn't install a privileged helper.
 
 ## Privacy
 
@@ -113,7 +113,7 @@ Screenshots for this README come from a separate build with the snapshot helper 
 
 ### Full Disk Access (optional)
 
-Some categories live in protected folders: sandboxed app caches, Mail downloads and iPhone backups. To include them, add Lustro under **System Settings → Privacy & Security → Full Disk Access**. Without it, those categories are skipped instead of flooding you with permission prompts.
+Some categories live in protected folders: sandboxed app caches, Mail downloads and iPhone backups. To include them, add Lustro under **System Settings → Privacy & Security → Full Disk Access**. Without it, those categories are skipped instead of flooding you with permission prompts. The Uninstaller needs it too to remove an app's containers (`~/Library/Containers` and `~/Library/Group Containers`).
 
 ## Translations
 

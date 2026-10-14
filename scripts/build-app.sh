@@ -54,6 +54,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
   <key>ATSApplicationFontsPath</key><string>Fonts</string>
   <key>NSHumanReadableCopyright</key><string>MIT License</string>
+  <key>NSAppleEventsUsageDescription</key><string>Lustro asks Finder to move apps installed by the App Store to the Trash. Finder then asks for your password.</string>
 </dict>
 </plist>
 PLIST
@@ -66,7 +67,8 @@ xattr -cr "$APP" 2>/dev/null || true
 # Hardened runtime: macOS ignores DYLD_* variables and refuses unsigned libraries, so no other program can
 # load its code into Lustro and borrow the Full Disk Access granted to it.
 # Finder metadata can reappear on files under ~/Documents while signing; clear it and retry once.
-codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP" \
-  || { xattr -cr "$APP"; codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP"; }
+# The only entitlement lets Lustro ask Finder to trash apps installed by the App Store (see FinderTrash.swift).
+SIGN=(codesign --force --deep --options runtime --entitlements Resources/Lustro.entitlements --sign "${SIGN_IDENTITY:--}" "$APP")
+"${SIGN[@]}" || { xattr -cr "$APP"; "${SIGN[@]}"; }
 [[ "$(codesign -dv "$APP" 2>&1)" == *"flags="*"runtime"* ]] || { echo "error: $APP is not signed with the hardened runtime" >&2; exit 1; }
 echo "Built $APP ($VERSION)"

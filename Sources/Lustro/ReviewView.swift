@@ -278,6 +278,8 @@ struct ActionBar: View {
     @Bindable var model: ReviewModel
     let module: String
     var extraAllowedRoots: [URL] = []
+    /// The Uninstaller lets Finder move apps installed by the App Store, which belong to root.
+    var usesFinderForSystemApps = false
     var actionTitle: LocalizedStringKey?
     var onRemoved: (@MainActor ([ScanItem]) -> Void)?
     @State private var confirming = false
@@ -356,7 +358,8 @@ struct ActionBar: View {
 
     private func performRemoval() {
         let remover = Remover(policy: app.settings.policy(extraAllowedRoots: extraAllowedRoots),
-                              mode: app.settings.removalMode, dryRun: app.settings.dryRun)
+                              mode: app.settings.removalMode, dryRun: app.settings.dryRun,
+                              usesFinderForSystemApps: usesFinderForSystemApps)
         let rules = model.ruleIDs
         model.remove(with: remover) { report in
             app.record(module: module, report: report, rules: rules, quitApps: quitApps.map(\.name))
