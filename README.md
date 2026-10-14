@@ -7,6 +7,21 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 
 <p align="center"><a href="#português">Português</a></p>
 
+<p align="center"><img src="docs/screenshots/overview.png" width="820" alt="Lustro Overview"></p>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/cleanup.png" alt="Cleanup with the Why? popover"></td>
+    <td><img src="docs/screenshots/dev-activity.png" alt="Dev Activity: agents, terminals, orphans and ports"></td>
+    <td><img src="docs/screenshots/maintenance.png" alt="Maintenance: heavy processes, login items and tune-ups"></td>
+  </tr>
+  <tr>
+    <td align="center">Cleanup</td>
+    <td align="center">Dev Activity</td>
+    <td align="center">Maintenance</td>
+  </tr>
+</table>
+
 ---
 
 ## What it does
@@ -63,7 +78,7 @@ Lustro makes **no network requests**. It has no analytics, no crash reporter, no
 
 ### Build from source
 
-Requires macOS 14+ and Xcode 16+.
+Requires macOS 14+ and a recent Xcode (Swift 6).
 
 ```sh
 git clone https://github.com/guiboorges/lustro.git
@@ -73,6 +88,12 @@ open build/Lustro.app
 ```
 
 Run the tests with `swift test`.
+
+Each build gets a new ad-hoc signature, so macOS asks for permissions such as Full Disk Access again. To keep them across rebuilds, create a local signing identity once (the key stays in your keychain):
+
+```sh
+scripts/create-signing-identity.sh
+```
 
 ### Full Disk Access (optional)
 
