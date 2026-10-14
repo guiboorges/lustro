@@ -78,11 +78,21 @@ Lustro makes **no network requests**. It has no analytics, no crash reporter, no
 
 ### Download
 
-1. Get `Lustro.zip` from [Releases](../../releases) and move `Lustro.app` to `/Applications`. The `.sha256` file next to it lets you check the download: `shasum -a 256 -c Lustro.zip.sha256`.
-2. Releases are not notarized by Apple yet, so macOS will block the first launch. Try to open it, then go to **System Settings → Privacy & Security** and click **Open Anyway**. If you prefer the terminal:
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/Lustro.app
-   ```
+1. Download [**Lustro.zip**](https://github.com/guiboorges/lustro/releases/latest/download/Lustro.zip), open it and move `Lustro.app` to **Applications**.
+2. Open Lustro. The first time, macOS says Apple could not verify that it is free of malware. Click **Done**, not Move to Trash.
+3. Open **System Settings → Privacy & Security**, scroll down to **Security** and click **Open Anyway** next to the message about Lustro. Confirm with your password. From then on it opens normally.
+
+If you prefer the terminal, `xattr -dr com.apple.quarantine /Applications/Lustro.app` does the same.
+
+#### Why does macOS warn about it?
+
+macOS shows this warning for every downloaded app that Apple hasn't notarized. Notarization needs a paid Apple Developer account, which this free project doesn't have yet. The warning doesn't mean anything was found in Lustro: Apple simply hasn't scanned it.
+
+What you can check yourself:
+
+- **The code is public**, and every release is built from it by [GitHub Actions](../../actions/workflows/release.yml), not on someone's computer. Each run shows the exact commit it built.
+- **Your download is the file GitHub built.** Download `Lustro.zip.sha256` from the same release into the same folder and run `shasum -a 256 -c Lustro.zip.sha256`. It should print `Lustro.zip: OK`.
+- **Lustro stays on your Mac.** It makes no network requests and asks for nothing when it starts. Full Disk Access is optional.
 
 ### Build from source
 
@@ -157,6 +167,6 @@ Lustro is an independent project and is not affiliated with any commercial Mac c
 
 **Privacidade:** zero pedidos de rede, sem analytics nem configuração remota.
 
-**Instalar:** descarrega `Lustro.zip` em [Releases](../../releases) e move a app para `/Applications`. Como ainda não é notarizada pela Apple, na primeira vez abre-a e, em **Definições do Sistema → Privacidade e Segurança**, carrega em **Abrir mesmo assim** (ou corre `xattr -dr com.apple.quarantine /Applications/Lustro.app`). Também podes compilar tu mesmo com `scripts/build-app.sh`.
+**Instalar:** descarrega [**Lustro.zip**](https://github.com/guiboorges/lustro/releases/latest/download/Lustro.zip) e move a `Lustro.app` para **Aplicações**. Na primeira vez, o macOS diz que a Apple não conseguiu verificar se a app está livre de malware: fecha o aviso (sem a mandar para o Lixo), abre **Definições do Sistema → Privacidade e Segurança** e, em **Segurança**, carrega em **Abrir mesmo assim**. O aviso aparece em todas as apps que a Apple não notarizou, porque a notarização exige uma conta paga de programador. Não quer dizer que tenha sido encontrado algo na app. O código é público e cada versão é compilada pelo GitHub Actions; podes confirmar o ficheiro com `shasum -a 256 -c Lustro.zip.sha256`. Também podes compilar tu mesmo com `scripts/build-app.sh`.
 
 **Contribuir:** as regras de limpeza estão em `rules.json`. Vê o [CONTRIBUTING.md](CONTRIBUTING.md).
