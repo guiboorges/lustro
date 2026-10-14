@@ -49,6 +49,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Ad-hoc signature: enough to run locally. Releases can re-sign with a Developer ID.
+# Signing, in order of preference:
+#   SIGN_IDENTITY=…              e.g. a Developer ID for releases
+#   "Lustro Local Signing"       stable local identity (scripts/create-signing-identity.sh), so macOS keeps
+#                                permissions such as Full Disk Access across rebuilds
+#   ad-hoc ("-")                 works anywhere, but permissions must be granted again after each build
+if [ -z "${SIGN_IDENTITY:-}" ] && security find-certificate -c "Lustro Local Signing" >/dev/null 2>&1; then
+    SIGN_IDENTITY="Lustro Local Signing"
+fi
+xattr -cr "$APP" 2>/dev/null || true
 codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP"
 echo "Built $APP ($VERSION)"
