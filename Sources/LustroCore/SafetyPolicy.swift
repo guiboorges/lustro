@@ -137,13 +137,57 @@ public struct SafetyPolicy: Sendable {
 
         try checkFileFlags(real)
 
-        // The path must sit inside an allowed root as written, and resolve to the same place inside it.
-        // A symlink anywhere between the root and the item (a cache folder swapped for a link to
-        // ~/Documents, a symlinked ~/.Trash…) would make a harmless-looking path act on other data.
+        try checkInsideRoots(standardized, real: real, ownership: true)
+    }
+
+    /// Checks a place an item is about to be put back to (History restore). Like `validate`, except that
+    /// nothing has to exist there yet and the ignore list does not apply.
+    public func validateDestination(_ url: URL) throws(SafetyViolation) {
+        guard url.path.hasPrefix("/") else { throw .notAbsolute(url.path) }
+        let standardized = url.standardizedFileURL
+        // Resolve the deepest folder that exists; the rest will be created.
+        var existing = standardized.deletingLastPathComponent()
+        var missing: [String] = [standardized.lastPathComponent]
+        var info = stat()
+        while existing.path != "/", lstat(existing.path, &info) != 0 {
+            missing.insert(existing.lastPathComponent, at: 0)
+            existing = existing.deletingLastPathComponent()
+        }
+        let real = missing.reduce(existing.resolvingSymlinksInPath()) { $0.appendingPathComponent($1) }
+
+        let protected = Set(protectedExactPaths.map(Self.key))
+        let denied = deniedPrefixes.map(Self.key)
+        for candidate in Set([Self.key(standardized.path), Self.key(real.path)]) {
+            if protected.contains(candidate) { throw .protectedPath(standardized.path) }
+            if let index = denied.firstIndex(where: { Self.isSameOrInside(candidate, $0) }) {
+                throw .insideDeniedLocation(deniedPrefixes[index])
+            }
+        }
+        try checkInsideRoots(standardized, real: real, ownership: false)
+    }
+
+    /// True when `url` is really in the user's Trash (or the user's Trash on another volume), not
+    /// merely somewhere a path through a link makes it look like the Trash.
+    public func isInTrash(_ url: URL) -> Bool {
+        let standardized = url.standardizedFileURL
+        let lexicalKey = Self.key(standardized.path)
+        guard lexicalKey == Self.key(resolvedLocation(of: standardized).path) else { return false }
+        if Self.isStrictlyInside(lexicalKey, Self.key(home.appendingPathComponent(".Trash").path)) { return true }
+        // /Volumes/<name>/.Trashes/<uid>/…
+        let parts = standardized.pathComponents
+        return parts.count > 5 && parts[1] == "Volumes" && parts[3] == ".Trashes" && parts[4] == String(getuid())
+    }
+
+    /// The path must sit inside an allowed root as written, and resolve to the same place inside it.
+    /// A symlink anywhere between the root and the item (a cache folder swapped for a link to
+    /// ~/Documents, a symlinked ~/.Trash…) would make a harmless-looking path act on other data.
+    private func checkInsideRoots(_ standardized: URL, real: URL, ownership: Bool) throws(SafetyViolation) {
+        let lexicalKey = Self.key(standardized.path)
+        let realKey = Self.key(real.path)
         for root in roots {
             for prefix in Set([root.lexical, root.real]) where Self.isStrictlyInside(lexicalKey, prefix) {
                 guard realKey == root.real + lexicalKey.dropFirst(prefix.count) else { throw .redirected(standardized.path) }
-                if root.ownedOnly, !isOwnedByCurrentUser(real) { throw .notOwnedByUser(real.path) }
+                if ownership, root.ownedOnly, !isOwnedByCurrentUser(real) { throw .notOwnedByUser(real.path) }
                 return
             }
         }

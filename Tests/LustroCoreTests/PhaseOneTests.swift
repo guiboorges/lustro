@@ -18,7 +18,7 @@ import Testing
         let store = HistoryStore(fileURL: home.url.appendingPathComponent("history.json"))
         // Simulate an item that was moved to a trash folder.
         let original = home.url.appendingPathComponent("Library/Caches/com.example")
-        let trashed = try home.dir("FakeTrash/com.example")
+        let trashed = try home.dir(".Trash/com.example")
         try Data("x".utf8).write(to: trashed.appendingPathComponent("blob"))
 
         var report = RemovalReport(dryRun: false, mode: .trash)
@@ -30,7 +30,7 @@ import Testing
         #expect(store.load().first?.status() == .inTrash)
         #expect(store.load().first?.items.first?.rule == "system-user-caches")
 
-        let failures = store.restore(entryID: entry.id)
+        let failures = store.restore(entryID: entry.id, policy: SafetyPolicy(home: home.url))
         #expect(failures.isEmpty)
         #expect(FileManager.default.fileExists(atPath: original.appendingPathComponent("blob").path))
         #expect(store.load().first?.status() == .restored)
@@ -40,13 +40,13 @@ import Testing
         let home = try FakeHome()
         let store = HistoryStore(fileURL: home.url.appendingPathComponent("history.json"))
         let original = try home.file("Library/Caches/again/data")   // something new took its place
-        let trashed = try home.file("FakeTrash/data")
+        let trashed = try home.file(".Trash/data")
         var report = RemovalReport(dryRun: false, mode: .trash)
         let item = ScanItem(url: original, size: 1, isDirectory: false)
         report.removed = [item]
         report.trashLocations[item.id] = trashed
         let entry = try #require(store.record(module: "Cleanup", report: report))
-        let failures = store.restore(entryID: entry.id)
+        let failures = store.restore(entryID: entry.id, policy: SafetyPolicy(home: home.url))
         #expect(failures[original.path] != nil)
         #expect(FileManager.default.fileExists(atPath: trashed.path))
     }

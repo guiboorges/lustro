@@ -319,25 +319,116 @@ public enum Containers {
                                 startDate: members.compactMap(\.startDate).min())
     }
 
-    public static func dockerCLI(home: String = NSHomeDirectory()) -> String? {
-        ["/usr/local/bin/docker", "/opt/homebrew/bin/docker", "\(home)/.orbstack/bin/docker", "\(home)/.docker/bin/docker",
-         "/Applications/Docker.app/Contents/Resources/bin/docker"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
+    /// The Docker Engine socket of the running runtime. Lustro reads container stats from it directly
+    /// rather than running a `docker` program: those live in folders other programs can write to, and a
+    /// program started by Lustro would run with the permissions granted to Lustro.
+    public static func dockerSocket(home: String = NSHomeDirectory()) -> String? {
+        ["\(home)/.docker/run/docker.sock", "\(home)/.orbstack/run/docker.sock", "\(home)/.colima/default/docker.sock",
+         "\(home)/.rd/docker.sock", "/var/run/docker.sock"]
+            .first { path in
+                var info = stat()
+                return stat(path, &info) == 0 && info.st_mode & S_IFMT == S_IFSOCK
+            }
     }
 
-    /// Per-container CPU and memory through the local Docker socket (no network).
-    public static func stats(cli: String) -> [ContainerStat] {
-        let result = Shell.run(cli, ["stats", "--no-stream", "--format", "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"], timeout: 8)
-        return result.status == 0 ? parseStats(result.output) : []
-    }
-
-    public static func parseStats(_ output: String) -> [ContainerStat] {
-        output.split(separator: "\n").compactMap { line in
-            let fields = line.split(separator: "\t").map { $0.trimmingCharacters(in: .whitespaces) }
-            guard fields.count >= 3, let cpu = Double(fields[1].replacingOccurrences(of: "%", with: "")) else { return nil }
-            let memory = fields[2].components(separatedBy: "/").first?.trimmingCharacters(in: .whitespaces) ?? fields[2]
-            return ContainerStat(name: fields[0], cpuPercent: cpu, memory: memory)
+    /// Per-container CPU and memory from the Docker Engine API over the local socket (no network).
+    public static func stats(socket: String) -> [ContainerStat] {
+        guard let body = UnixHTTP.get("/containers/json", socket: socket, timeout: 3),
+              let list = try? JSONSerialization.jsonObject(with: body) as? [[String: Any]] else { return [] }
+        let containers: [(id: String, name: String)] = list.prefix(40).compactMap { entry in
+            guard let id = entry["Id"] as? String, !id.isEmpty, id.allSatisfy(\.isHexDigit) else { return nil }
+            let name = (entry["Names"] as? [String])?.first.map { String($0.drop { $0 == "/" }) } ?? String(id.prefix(12))
+            return (id, name)
         }
-        .sorted { $0.cpuPercent > $1.cpuPercent }
+        let results = Results(count: containers.count)
+        DispatchQueue.concurrentPerform(iterations: containers.count) { index in
+            let container = containers[index]
+            // Not one-shot: the engine samples for a second so it can report CPU use.
+            if let data = UnixHTTP.get("/containers/\(container.id)/stats?stream=false", socket: socket, timeout: 4) {
+                results.set(index, parseStats(data, name: container.name))
+            }
+        }
+        return results.values.compactMap { $0 }.sorted { $0.cpuPercent > $1.cpuPercent }
+    }
+
+    /// One container's `/containers/{id}/stats` response, as `docker stats` would show it.
+    public static func parseStats(_ data: Data, name: String) -> ContainerStat? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let cpu = json["cpu_stats"] as? [String: Any], let pre = json["precpu_stats"] as? [String: Any] else { return nil }
+        func number(_ dict: [String: Any]?, _ key: String) -> Double { (dict?[key] as? NSNumber)?.doubleValue ?? 0 }
+        let usage = cpu["cpu_usage"] as? [String: Any], preUsage = pre["cpu_usage"] as? [String: Any]
+        let cpuDelta = number(usage, "total_usage") - number(preUsage, "total_usage")
+        let systemDelta = number(cpu, "system_cpu_usage") - number(pre, "system_cpu_usage")
+        let cpus = max(number(cpu, "online_cpus"), Double((usage?["percpu_usage"] as? [Any])?.count ?? 1))
+        let percent = cpuDelta > 0 && systemDelta > 0 ? cpuDelta / systemDelta * cpus * 100 : 0
+
+        let memory = json["memory_stats"] as? [String: Any]
+        let detail = memory?["stats"] as? [String: Any]
+        let cache = (detail?["inactive_file"] as? NSNumber ?? detail?["total_inactive_file"] as? NSNumber ?? detail?["cache"] as? NSNumber)?.doubleValue ?? 0
+        let used = max(0, number(memory, "usage") - cache)
+        return ContainerStat(name: name, cpuPercent: (percent * 100).rounded() / 100, memory: formatMemory(used))
+    }
+
+    /// Binary units, like `docker stats`: 210.4MiB, 1.53GiB.
+    static func formatMemory(_ bytes: Double) -> String {
+        switch bytes {
+        case 1_073_741_824...: String(format: "%.2fGiB", bytes / 1_073_741_824)
+        case 1_048_576...: String(format: "%.1fMiB", bytes / 1_048_576)
+        default: String(format: "%.0fKiB", bytes / 1024)
+        }
+    }
+
+    private final class Results: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storage: [ContainerStat?]
+        init(count: Int) { storage = Array(repeating: nil, count: count) }
+        func set(_ index: Int, _ value: ContainerStat?) { lock.withLock { storage[index] = value } }
+        var values: [ContainerStat?] { lock.withLock { storage } }
     }
 }
+
+/// A minimal HTTP/1.0 GET over a Unix domain socket, enough for the Docker Engine API.
+enum UnixHTTP {
+    static let maxResponse = 4 << 20
+
+    static func get(_ path: String, socket socketPath: String, timeout: Int) -> Data? {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        var limit = timeval(tv_sec: timeout, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))
+
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        let bytes = Array(socketPath.utf8)
+        guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { return nil }
+        withUnsafeMutableBytes(of: &address.sun_path) { buffer in
+            buffer.copyBytes(from: bytes)
+            buffer[bytes.count] = 0
+        }
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        guard connected == 0 else { return nil }
+
+        let request = Array("GET \(path) HTTP/1.0\r\nHost: docker\r\n\r\n".utf8)
+        guard request.withUnsafeBytes({ write(fd, $0.baseAddress, $0.count) }) == request.count else { return nil }
+
+        var response = Data()
+        var buffer = [UInt8](repeating: 0, count: 65_536)
+        while response.count <= maxResponse {
+            let count = read(fd, &buffer, buffer.count)
+            if count <= 0 { break }
+            response.append(buffer, count: count)
+        }
+        guard response.count <= maxResponse,
+              let split = response.range(of: Data("\r\n\r\n".utf8)),
+              let status = String(data: response[..<split.lowerBound], encoding: .utf8)?.split(separator: " ").dropFirst().first,
+              status == "200" else { return nil }
+        return response[split.upperBound...]
+    }
+}
+

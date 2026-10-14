@@ -7,6 +7,7 @@ public struct RuleCatalog: Codable, Sendable {
     public let categories: [JunkCategory]
 
     public static func bundled() throws -> RuleCatalog {
+        guard CodeIntegrity.bundleIsIntact else { throw ResourceIntegrityError() }
         guard let url = resourceBundle.url(forResource: "rules", withExtension: "json") else {
             throw CocoaError(.fileNoSuchFile)
         }

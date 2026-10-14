@@ -58,19 +58,22 @@ public struct LustroSettings: Codable, Equatable, Sendable {
         let support = home.appendingPathComponent("Library/Application Support")
         let old = support.appendingPathComponent("Limpo")
         let new = support.appendingPathComponent("Lustro")
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { return }
-        try? fm.moveItem(at: old, to: new)
+        var info = stat()
+        // Only a real folder of the user's is moved into place, never a link planted under the old name.
+        guard lstat(old.path, &info) == 0, info.st_mode & S_IFMT == S_IFDIR, info.st_uid == getuid(),
+              lstat(new.path, &info) != 0, StateDirectory.isSafe(support, home: home) else { return }
+        try? FileManager.default.moveItem(at: old, to: new)
     }
 
     public static func load(from url: URL = fileURL) -> LustroSettings {
-        guard let data = try? Data(contentsOf: url),
+        guard StateDirectory.isSafe(url.deletingLastPathComponent()),
+              let data = try? Data(contentsOf: url),
               let settings = try? JSONDecoder().decode(LustroSettings.self, from: data) else { return LustroSettings() }
         return settings
     }
 
     public func save(to url: URL = fileURL) throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try StateDirectory.prepare(url.deletingLastPathComponent())
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(self).write(to: url, options: .atomic)
@@ -105,5 +108,47 @@ extension LustroSettings {
         disabledCategories = try c.decodeIfPresent([String].self, forKey: .disabledCategories) ?? disabledCategories
         appearance = try c.decodeIfPresent(Appearance.self, forKey: .appearance) ?? appearance
         language = try c.decodeIfPresent(AppLanguage.self, forKey: .language) ?? language
+    }
+}
+
+/// Lustro's own folder in Application Support. Another program in the account could replace it, or a
+/// folder above it, with a link into a protected location that Lustro would then read and write with
+/// its permissions. Every read and write of settings and history checks it first.
+public enum StateDirectory {
+    public struct Unsafe: Error, CustomStringConvertible {
+        public let path: String
+        public var description: String { String(localized: "Lustro's data folder is not a regular folder of yours: \(path)") }
+    }
+
+    /// Each folder from the home folder down to `dir` that exists is a real folder (not a link) owned by
+    /// the user. Outside the home folder (tests) only `dir` itself is checked.
+    public static func isSafe(_ dir: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        for folder in chain(to: dir, home: home) {
+            var info = stat()
+            guard lstat(folder.path, &info) == 0 else { continue }
+            guard info.st_mode & S_IFMT == S_IFDIR, info.st_uid == getuid() else { return false }
+        }
+        return true
+    }
+
+    /// Creates any missing folders (private to the user) after checking the ones that exist.
+    public static func prepare(_ dir: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) throws {
+        for folder in chain(to: dir, home: home) {
+            var info = stat()
+            if lstat(folder.path, &info) != 0 {
+                guard mkdir(folder.path, 0o700) == 0 || errno == EEXIST else { throw Unsafe(path: folder.path) }
+                guard lstat(folder.path, &info) == 0 else { throw Unsafe(path: folder.path) }
+            }
+            guard info.st_mode & S_IFMT == S_IFDIR, info.st_uid == getuid() else { throw Unsafe(path: folder.path) }
+        }
+    }
+
+    private static func chain(to dir: URL, home: URL) -> [URL] {
+        let dir = dir.standardizedFileURL, home = home.standardizedFileURL
+        let homeParts = home.pathComponents, dirParts = dir.pathComponents
+        guard dirParts.count > homeParts.count, Array(dirParts.prefix(homeParts.count)) == homeParts else { return [dir] }
+        return (homeParts.count..<dirParts.count).map { end in
+            dirParts[homeParts.count...end].reduce(home) { $0.appendingPathComponent($1) }
+        }
     }
 }

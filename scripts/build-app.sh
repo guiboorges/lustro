@@ -4,6 +4,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 VERSION="${1:-0.1.0}"
+# The version comes from the release tag and is written into Info.plist, so it may only be a version.
+[[ "$VERSION" =~ '^[0-9A-Za-z.+-]+$' ]] || { echo "error: invalid version: $VERSION" >&2; exit 1; }
 APP="build/Lustro.app"
 
 # Prefer full Xcode when present (needed for SwiftUI and Swift Testing).
@@ -13,8 +15,11 @@ fi
 
 # Folders such as ~/Documents can tag build products with Finder metadata that codesign rejects.
 xattr -cr .build 2>/dev/null || true
-swift build -c release --arch arm64 --arch x86_64
-BIN_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+# SNAPSHOTS=1 compiles in the screenshot helper (DevSnapshot). Never set it for builds people install.
+FLAGS=(-c release --arch arm64 --arch x86_64)
+[[ "${SNAPSHOTS:-}" == 1 ]] && FLAGS+=(-Xswiftc -DLUSTRO_SNAPSHOTS)
+swift build "${FLAGS[@]}"
+BIN_DIR="$(swift build "${FLAGS[@]}" --show-bin-path)"
 
 rm -rf "$APP"
 xattr -cr "$BIN_DIR" 2>/dev/null || true
@@ -60,6 +65,8 @@ PLIST
 xattr -cr "$APP" 2>/dev/null || true
 # Hardened runtime: macOS ignores DYLD_* variables and refuses unsigned libraries, so no other program can
 # load its code into Lustro and borrow the Full Disk Access granted to it.
-codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP"
+# Finder metadata can reappear on files under ~/Documents while signing; clear it and retry once.
+codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP" \
+  || { xattr -cr "$APP"; codesign --force --deep --options runtime --sign "${SIGN_IDENTITY:--}" "$APP"; }
 [[ "$(codesign -dv "$APP" 2>&1)" == *"flags="*"runtime"* ]] || { echo "error: $APP is not signed with the hardened runtime" >&2; exit 1; }
 echo "Built $APP ($VERSION)"

@@ -90,7 +90,9 @@ open build/Lustro.app
 
 Run the tests with `swift test`.
 
-Local builds are signed ad-hoc, so macOS asks for permissions such as Full Disk Access again after each rebuild. This is on purpose: a self-signed identity that `codesign` can use without a password would let any program in your account sign itself as Lustro and inherit its permissions.
+Local builds are signed ad-hoc, so macOS asks for permissions such as Full Disk Access again after each rebuild. This is on purpose: a self-signed identity that `codesign` can use without a password would let any program in your account sign itself as Lustro and inherit its permissions. Builds also use the hardened runtime, so no other program can load code into Lustro, and Lustro refuses to use its cleaning rules if its files no longer match the signature.
+
+Screenshots for this README come from a separate build with the snapshot helper compiled in: `SNAPSHOTS=1 scripts/build-app.sh`, then `LUSTRO_SNAPSHOT=/tmp/shot.png LUSTRO_MODULE=cleanup build/Lustro.app/Contents/MacOS/Lustro`. Normal builds ignore these variables.
 
 ### Full Disk Access (optional)
 

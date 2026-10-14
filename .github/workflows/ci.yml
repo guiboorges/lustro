@@ -5,15 +5,22 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      # Swift 6 language mode and typed throws need a current Xcode.
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          xcode-version: latest-stable
+          persist-credentials: false
+      # Swift 6 language mode and typed throws need a current Xcode.
+      - name: Select the newest stable Xcode
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app | grep -viE 'beta|rc' | sort -V | tail -1)"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
       - name: Build
         run: swift build
       - name: Test

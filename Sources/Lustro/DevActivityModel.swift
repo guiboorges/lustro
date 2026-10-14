@@ -84,9 +84,9 @@ final class DevActivityModel {
 
         if runtime == nil {
             containers = []
-        } else if isVisible, Date().timeIntervalSince(lastContainerCheck) > 15, let cli = Containers.dockerCLI() {
+        } else if isVisible, Date().timeIntervalSince(lastContainerCheck) > 15, let socket = Containers.dockerSocket() {
             lastContainerCheck = Date()
-            containers = await Task.detached(priority: .utility) { Containers.stats(cli: cli) }.value
+            containers = await Task.detached(priority: .utility) { Containers.stats(socket: socket) }.value
         }
     }
 

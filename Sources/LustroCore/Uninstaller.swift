@@ -31,8 +31,12 @@ public struct Uninstaller: Sendable {
                 knowledgeBase: AppKnowledgeBase = .bundled()) {
         self.home = home
         self.knowledgeBase = knowledgeBase
-        self.searchRoots = searchRoots ?? [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")]
+        self.searchRoots = searchRoots ?? Self.defaultSearchRoots(home: home)
         self.policy = SafetyPolicy(home: home, extraAllowedRoots: self.searchRoots, ignoredPaths: ignoredPaths)
+    }
+
+    public static func defaultSearchRoots(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [URL] {
+        [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")]
     }
 
     /// Bundle identifiers that are never offered for removal. Compared without case, like the file system.
@@ -102,7 +106,16 @@ public struct Uninstaller: Sendable {
                                     section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID],
                                     icon: "shippingbox", tint: "pink", items: [bundle]))
         }
-        let others = installedApps(measureSizes: false).map(\.bundleID).filter { $0 != app.bundleID }
+        let installed = installedApps(measureSizes: false)
+        let others = installed.map(\.bundleID).filter { $0 != app.bundleID }
+        // Info.plist is just a file: an app only vouches for its bundle identifier when a valid signature covers it,
+        // and no other installed app claims the same identifier. Otherwise its files are listed but not preselected.
+        let sharesID = installed.contains { $0.url != app.url && $0.bundleID.lowercased() == app.bundleID.lowercased() }
+        let unverified: String? = sharesID
+            ? String(localized: "Not preselected: another installed app uses the same identifier.")
+            : CodeIntegrity.teamIdentifier(of: app.url) == nil
+                ? String(localized: "Not preselected: this app isn't signed by an identified developer, so nothing proves these files are its own.")
+                : nil
         let leftovers = leftovers(bundleID: app.bundleID, name: app.name, otherBundleIDs: others)
         // Data the knowledge base protects (profiles, vaults, unsynced files) is offered separately and never preselected.
         let (support, data) = (leftovers.filter { knowledgeBase.protectingApp(for: $0.url, home: home) == nil },
@@ -114,8 +127,8 @@ public struct Uninstaller: Sendable {
         let dataItems = data + extra.filter { knowledgeBase.protectingApp(for: $0.url, home: home) != nil }
         if !supportItems.isEmpty {
             groups.append(ScanGroup(id: "leftovers", title: String(localized: "Support files"),
-                                    detail: String(localized: "Preferences, caches, containers and other files created by the app"),
-                                    section: app.name, risk: .review, autoSelect: true, owners: [app.bundleID],
+                                    detail: unverified ?? String(localized: "Preferences, caches, containers and other files created by the app"),
+                                    section: app.name, risk: .review, autoSelect: unverified == nil, owners: [app.bundleID],
                                     icon: "lock.shield", tint: "indigo", items: supportItems.sorted { $0.size > $1.size }))
         }
         if !dataItems.isEmpty {

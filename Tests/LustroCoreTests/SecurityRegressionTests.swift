@@ -140,4 +140,99 @@ import Testing
         defer { try? FileManager.default.removeItem(at: file) }
         #expect(SafetyPolicy(home: URL(fileURLWithPath: NSHomeDirectory())).isAllowed(file))
     }
+
+    // MARK: History restore
+
+    private func entry(_ store: HistoryStore, original: URL, trashed: URL) throws -> HistoryEntry {
+        var report = RemovalReport(dryRun: false, mode: .trash)
+        let item = ScanItem(url: original, size: 1, isDirectory: false)
+        report.removed = [item]
+        report.trashLocations[item.id] = trashed
+        return try #require(store.record(module: "Cleanup", report: report))
+    }
+
+    @Test func restoreOnlyTakesItemsFromTheTrash() throws {
+        let home = try FakeHome()
+        let store = HistoryStore(fileURL: home.url.appendingPathComponent("state/history.json"))
+        // history.json edited to "put back" a file that was never in the Trash.
+        let protected = try home.file("Library/Messages/chat.db")
+        let destination = home.url.appendingPathComponent("Public/chat.db")
+        let edited = try entry(store, original: destination, trashed: protected)
+        let failures = store.restore(entryID: edited.id, policy: SafetyPolicy(home: home.url))
+        #expect(failures[destination.path] != nil)
+        #expect(FileManager.default.fileExists(atPath: protected.path))
+    }
+
+    @Test func restoreRefusesProtectedAndRedirectedDestinations() throws {
+        let home = try FakeHome()
+        let store = HistoryStore(fileURL: home.url.appendingPathComponent("state/history.json"))
+        let policy = SafetyPolicy(home: home.url)
+        let secret = try home.dir("Library/Safari")
+        try home.dir("Library/Caches")
+        try FileManager.default.createSymbolicLink(at: home.url.appendingPathComponent("Library/Caches/link"), withDestinationURL: secret)
+
+        for destination in ["Library/Safari/History.db", "Library/Caches/link/History.db", "../outside.txt"] {
+            let trashed = try home.file(".Trash/planted-\(UUID().uuidString)")
+            let original = URL(fileURLWithPath: home.url.path + "/" + destination)
+            let edited = try entry(store, original: original, trashed: trashed)
+            let failures = store.restore(entryID: edited.id, policy: policy)
+            #expect(!failures.isEmpty, "restored into \(destination)")
+            #expect(FileManager.default.fileExists(atPath: trashed.path))
+        }
+        #expect(!FileManager.default.fileExists(atPath: secret.appendingPathComponent("History.db").path))
+    }
+
+    // MARK: Lustro's own state folder
+
+    @Test func stateFolderThatIsALinkIsNotUsed() throws {
+        let home = try FakeHome()
+        let victim = try home.dir("Library/Safari")
+        let support = try home.dir("Library/Application Support")
+        let state = support.appendingPathComponent("Lustro")
+        try FileManager.default.createSymbolicLink(at: state, withDestinationURL: victim)
+
+        #expect(!StateDirectory.isSafe(state, home: home.url))
+        #expect(throws: StateDirectory.Unsafe.self) { try StateDirectory.prepare(state, home: home.url) }
+        let store = HistoryStore(fileURL: state.appendingPathComponent("history.json"))
+        var report = RemovalReport(dryRun: false, mode: .permanent)
+        report.removed = [ScanItem(url: home.url.appendingPathComponent("x"), size: 1, isDirectory: false)]
+        store.record(module: "Cleanup", report: report)
+        #expect((try FileManager.default.contentsOfDirectory(atPath: victim.path)).isEmpty)
+    }
+
+    @Test func migrationNeverMovesALink() throws {
+        let home = try FakeHome()
+        let support = try home.dir("Library/Application Support")
+        let elsewhere = try home.dir("Elsewhere")
+        try FileManager.default.createSymbolicLink(at: support.appendingPathComponent("Limpo"), withDestinationURL: elsewhere)
+        LustroSettings.migrateFromPreviousName(home: home.url)
+        #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent("Lustro").path))
+    }
+
+    // MARK: Uninstaller identity
+
+    @Test func unsignedAppsDoNotGetSupportFilesPreselected() throws {
+        let home = try FakeHome()
+        let apps = try home.dir("Applications")
+        try home.file("Applications/Impostor.app/Contents/Info.plist", bytes: 0)
+        let plist: [String: Any] = ["CFBundleIdentifier": "com.example.victim", "CFBundleName": "Impostor", "CFBundlePackageType": "APPL"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: apps.appendingPathComponent("Impostor.app/Contents/Info.plist"))
+        try home.file("Library/Containers/com.example.victim/Data/db.sqlite")
+
+        let uninstaller = Uninstaller(home: home.url, searchRoots: [apps])
+        let app = try #require(uninstaller.installedApps(measureSizes: false).first)
+        let support = try #require(uninstaller.removalPlan(for: app).first { $0.id == "leftovers" })
+        #expect(!support.autoSelect)
+        #expect(support.items.contains { $0.url.lastPathComponent == "com.example.victim" })
+    }
+
+    // MARK: Knowledge base
+
+    @Test func unreadableKnowledgeBaseProtectsEverything() {
+        var kb = AppKnowledgeBase(apps: [])
+        #expect(kb.protectingApp(for: URL(fileURLWithPath: "/tmp/x"), home: URL(fileURLWithPath: "/tmp")) == nil)
+        kb = AppKnowledgeBase.unavailableForTesting()
+        #expect(kb.protectingApp(for: URL(fileURLWithPath: "/tmp/x"), home: URL(fileURLWithPath: "/tmp")) != nil)
+    }
 }

@@ -4,27 +4,51 @@ on:
   push:
     tags: ["v*"]
 
+# Read-only by default. Only the publish job, which runs no third-party code and never sees the
+# source tree, gets permission to create the release.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      # Swift 6 language mode and typed throws need a current Xcode.
-      - uses: maxim-lobanov/setup-xcode@v1
+      # Actions are pinned to full commit SHAs: a moved tag cannot change what runs here.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          xcode-version: latest-stable
+          persist-credentials: false
+      # Swift 6 language mode and typed throws need a current Xcode.
+      - name: Select the newest stable Xcode
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app | grep -viE 'beta|rc' | sort -V | tail -1)"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
       - name: Test
         run: swift test
       - name: Build app
         run: scripts/build-app.sh "${GITHUB_REF_NAME#v}"
       - name: Package
         run: cd build && ditto -c -k --keepParent Lustro.app Lustro.zip && shasum -a 256 Lustro.zip > Lustro.zip.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release
+          path: |
+            build/Lustro.zip
+            build/Lustro.zip.sha256
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/Lustro.zip build/Lustro.zip.sha256 \
-            --title "Lustro $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" Lustro.zip Lustro.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" --title "Lustro $GITHUB_REF_NAME" --generate-notes

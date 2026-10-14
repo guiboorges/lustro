@@ -155,12 +155,17 @@ import Testing
 }
 
 @Suite struct ContainerTests {
-    @Test func parsesDockerStats() {
-        let output = "api\t12.40%\t210MiB / 7.6GiB\npostgres\t3.01%\t80MiB / 7.6GiB\nbroken line\n"
-        let stats = Containers.parseStats(output)
-        #expect(stats.map(\.name) == ["api", "postgres"])
-        #expect(stats.first?.cpuPercent == 12.4)
-        #expect(stats.first?.memory == "210MiB")
+    @Test func parsesDockerEngineStats() throws {
+        let json = """
+        {"cpu_stats":{"cpu_usage":{"total_usage":3000000000},"system_cpu_usage":20000000000,"online_cpus":4},
+         "precpu_stats":{"cpu_usage":{"total_usage":2000000000},"system_cpu_usage":10000000000},
+         "memory_stats":{"usage":230686720,"stats":{"inactive_file":10485760}}}
+        """
+        let stat = try #require(Containers.parseStats(Data(json.utf8), name: "api"))
+        #expect(stat.name == "api")
+        #expect(stat.cpuPercent == 40)
+        #expect(stat.memory == "210.0MiB")
+        #expect(Containers.parseStats(Data("not json".utf8), name: "x") == nil)
     }
 
     @Test func detectsRuntimeAndVM() {

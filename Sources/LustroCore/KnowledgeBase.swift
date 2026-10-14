@@ -21,17 +21,31 @@ public struct AppKnowledgeBase: Codable, Sendable {
 
     public let version: Int
     public let apps: [App]
+    /// The bundled file could not be trusted or read. Its `never` entries are then unknown, so every
+    /// path counts as protected rather than none.
+    public private(set) var isUnavailable = false
+
+    enum CodingKeys: String, CodingKey { case version, apps }
 
     public init(version: Int = 1, apps: [App]) {
         self.version = version
         self.apps = apps
     }
 
+    static func unavailableForTesting() -> AppKnowledgeBase {
+        var base = AppKnowledgeBase(apps: [])
+        base.isUnavailable = true
+        return base
+    }
+
     public static func bundled() -> AppKnowledgeBase {
-        guard let url = RuleCatalog.resourceBundle.url(forResource: "apps", withExtension: "json"),
+        guard CodeIntegrity.bundleIsIntact,
+              let url = RuleCatalog.resourceBundle.url(forResource: "apps", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let base = try? JSONDecoder().decode(AppKnowledgeBase.self, from: data) else {
-            return AppKnowledgeBase(apps: [])
+            var unavailable = AppKnowledgeBase(apps: [])
+            unavailable.isUnavailable = true
+            return unavailable
         }
         return base
     }
@@ -39,6 +53,10 @@ public struct AppKnowledgeBase: Codable, Sendable {
     /// The app whose protected data `url` is, or contains (a parent folder would sweep it up too),
     /// unless one of the app's `files` entries allows that exact spot.
     public func protectingApp(for url: URL, home: URL) -> App? {
+        if isUnavailable {
+            return App(bundleIDs: [], name: "Lustro", files: nil, never: nil,
+                       why: String(localized: "Lustro's list of app data could not be read, so nothing is suggested. Download Lustro again."))
+        }
         let path = url.standardizedFileURL.path
         for app in apps {
             let never = app.never ?? []

@@ -67,11 +67,13 @@ public struct HistoryItem: Codable, Identifiable, Sendable, Equatable {
 public enum RestoreError: Error, CustomStringConvertible {
     case notInTrash(String)
     case originalOccupied(String)
+    case unsafeDestination(String, SafetyViolation)
 
     public var description: String {
         switch self {
         case .notInTrash(let p): String(localized: "No longer in the Trash: \(p)")
         case .originalOccupied(let p): String(localized: "Something already exists at \(p)")
+        case .unsafeDestination(_, let why): why.description
         }
     }
 }
@@ -113,8 +115,13 @@ public final class HistoryStore: @unchecked Sendable {
     }
 
     /// Moves items back from the Trash to where they were. Returns the paths that failed and why.
+    ///
+    /// Other programs in the account can edit history.json, so its paths are not trusted: an item is only
+    /// moved from the real Trash, and only to a place `policy` would have allowed it to be removed from.
     @discardableResult
-    public func restore(entryID: UUID, itemIDs: Set<String>? = nil, fileManager: FileManager = .default) -> [String: String] {
+    public func restore(entryID: UUID, itemIDs: Set<String>? = nil,
+                        policy: SafetyPolicy = SafetyPolicy(extraAllowedRoots: Uninstaller.defaultSearchRoots()),
+                        fileManager: FileManager = .default) -> [String: String] {
         lock.withLock {
             var all = read()
             guard let index = all.firstIndex(where: { $0.id == entryID }) else { return [:] }
@@ -123,13 +130,17 @@ public final class HistoryStore: @unchecked Sendable {
                 let item = all[index].items[i]
                 guard itemIDs?.contains(item.id) ?? true, !item.restored else { continue }
                 do {
-                    guard let trashed = item.trashedPath, fileManager.fileExists(atPath: trashed) else {
+                    guard let trashed = item.trashedPath, fileManager.fileExists(atPath: trashed),
+                          policy.isInTrash(URL(fileURLWithPath: trashed)) else {
                         throw RestoreError.notInTrash(item.originalPath)
                     }
                     guard !fileManager.fileExists(atPath: item.originalPath) else {
                         throw RestoreError.originalOccupied(item.originalPath)
                     }
                     let original = URL(fileURLWithPath: item.originalPath)
+                    do throws(SafetyViolation) { try policy.validateDestination(original) } catch {
+                        throw RestoreError.unsafeDestination(item.originalPath, error)
+                    }
                     try fileManager.createDirectory(at: original.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try fileManager.moveItem(at: URL(fileURLWithPath: trashed), to: original)
                     all[index].items[i].restored = true
@@ -149,7 +160,8 @@ public final class HistoryStore: @unchecked Sendable {
     // MARK: - Storage (call with the lock held)
 
     private func read() -> [HistoryEntry] {
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
+        guard StateDirectory.isSafe(fileURL.deletingLastPathComponent()),
+              let data = try? Data(contentsOf: fileURL) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return (try? decoder.decode([HistoryEntry].self, from: data)) ?? []
@@ -159,7 +171,7 @@ public final class HistoryStore: @unchecked Sendable {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        guard (try? StateDirectory.prepare(fileURL.deletingLastPathComponent())) != nil else { return }
         try? encoder.encode(entries).write(to: fileURL, options: .atomic)
     }
 }
