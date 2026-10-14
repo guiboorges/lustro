@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 enum Module: String, CaseIterable, Identifiable {
-    case overview, cleanup, devPurge, spaceLens, uninstaller, history, settings
+    case overview, cleanup, devPurge, spaceLens, uninstaller, maintenance, history, settings
     var id: String { rawValue }
 
     var title: String {
@@ -57,6 +57,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .devPurge: "Dev Purge"
         case .spaceLens: "Space Lens"
         case .uninstaller: "Uninstaller"
+        case .maintenance: "Maintenance"
         case .history: "History"
         case .settings: "Settings"
         }
@@ -69,6 +70,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .devPurge: "hammer"
         case .spaceLens: "chart.pie"
         case .uninstaller: "shippingbox"
+        case .maintenance: "gauge.with.needle"
         case .history: "clock.arrow.circlepath"
         case .settings: "slider.horizontal.3"
         }
@@ -83,10 +85,11 @@ struct RootView: View {
     @State private var devPurge = ReviewModel()
     @State private var spaceLens = SpaceLensModel()
     @State private var uninstaller = UninstallerModel()
+    @State private var maintenance = MaintenanceModel()
 
     var body: some View {
         HStack(spacing: 0) {
-            Sidebar(module: $module, cleanup: cleanup, devPurge: devPurge)
+            Sidebar(module: $module, cleanup: cleanup, devPurge: devPurge, maintenance: maintenance)
             panel
                 .padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 22)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -101,7 +104,10 @@ struct RootView: View {
             app.refreshPermissions()
             app.refreshDisk()
         }
-        .task { startInitialScans() }
+        .task {
+            startInitialScans()
+            maintenance.startSampling()
+        }
     }
 
     @ViewBuilder private var panel: some View {
@@ -111,6 +117,7 @@ struct RootView: View {
         case .devPurge: DevPurgeView(model: devPurge)
         case .spaceLens: SpaceLensView(model: spaceLens)
         case .uninstaller: UninstallerView(model: uninstaller)
+        case .maintenance: MaintenanceView(model: maintenance)
         case .history: HistoryView()
         case .settings: SettingsView()
         }
@@ -150,6 +157,7 @@ struct Sidebar: View {
     @Binding var module: Module
     let cleanup: ReviewModel
     let devPurge: ReviewModel
+    let maintenance: MaintenanceModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -167,6 +175,7 @@ struct Sidebar: View {
             item(.devPurge, detail: devPurge.groups.isEmpty ? nil : devPurge.selectedSize.formattedBytes)
             item(.spaceLens)
             item(.uninstaller)
+            item(.maintenance, detail: maintenance.runaway == nil ? nil : "1 alert")
             item(.history, detail: app.historyEntries.isEmpty ? nil : "\(app.historyEntries.count) run\(app.historyEntries.count == 1 ? "" : "s")")
             Spacer()
             StorageCard(freeable: cleanup.selectedSize + devPurge.selectedSize)
@@ -192,7 +201,7 @@ struct Sidebar: View {
                 Text(item.title).font(selected ? .lBodyStrong : .lBody).foregroundStyle(Theme.onBrand)
                     .lineLimit(1).layoutPriority(1)
                 Spacer(minLength: 4)
-                if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.onBrandMuted).monospacedDigit() }
+                if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.onBrandMuted).monospacedDigit().fixedSize() }
             }
             .padding(.leading, 8).padding(.trailing, 14)
             .frame(height: 44)

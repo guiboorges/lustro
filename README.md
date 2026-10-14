@@ -18,7 +18,12 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 | **Dev Purge** | `node_modules`, `target`, `.venv`, `.next`, `build`, `DerivedData` and ~40 other regenerable folders inside your projects. Projects you haven't touched in 30 days are preselected. |
 | **Space Lens** | A treemap and sorted list of what takes up space in any folder. Browse in, select, remove. |
 | **Uninstaller** | Removes an app together with its preferences, caches, containers, saved state and launch agents. |
+| **Maintenance** | Live CPU, memory pressure and temperature; the processes using the most CPU or memory, with a plain-language alert when one runs away (and a safe way to quit it); the launch agents that start on their own, with on/off switches; and four tune-ups: thin Time Machine snapshots, compact Mail's index, flush the DNS cache and rebuild Spotlight. |
 | **History** | Every removal, with one-click restore for items still in the Trash. |
+
+### Why there's no "Free up RAM"
+
+macOS uses spare memory as a cache for files and apps you're likely to open again. "RAM cleaners" work by grabbing memory until the system throws that cache away, so the number looks better for a moment and apps are slower to reopen afterwards. Lustro shows **memory pressure** instead, which is what tells you whether your Mac is actually short of memory. When a Mac gets slow or loud, the cause is almost always one process using too much CPU, and that's what the Maintenance screen points out.
 
 ## Safety first
 
@@ -35,6 +40,9 @@ Cleaning tools delete things. Lustro is designed so that a mistake is hard to ma
 - **Active work is left alone.** Temporary files of AI tools touched in the last 24 hours are skipped, so running sessions aren't broken.
 - **Exact matching in the uninstaller.** Leftovers are matched by exact bundle identifier, never by fuzzy name guessing. Apple apps are not listed.
 - **Caution items are never preselected,** for example Xcode archives, iPhone backups and local AI models.
+- **Processes are asked, not killed.** Quitting a process sends it a normal quit request (apps get to ask about unsaved work); Force Quit is offered only if it doesn't respond within 10 seconds. macOS processes and other users' processes can't be quit from Lustro.
+- **Launch agents are switched off, not deleted.** Turning one off uses launchd's own disabled list, so it can be turned back on at any time. Only agents whose app is gone can be removed, and they go to the Trash and into History.
+- **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog; Lustro doesn't install a privileged helper.
 
 ## Privacy
 
@@ -100,6 +108,7 @@ Lustro is an independent project and is not affiliated with any commercial Mac c
 - **Dev Purge:** `node_modules`, `target`, `.venv`, `.next` e outros artefactos de projetos que podem ser reconstruídos. Só aparecem quando existe um ficheiro de projeto que prove o que são.
 - **Space Lens:** mapa do que ocupa espaço numa pasta.
 - **Desinstalador:** remove apps juntamente com os ficheiros de suporte, que são encontrados pelo bundle ID exato.
+- **Manutenção:** CPU, pressão de memória e temperatura em tempo real; os processos mais pesados, com um alerta quando um fica descontrolado; os launch agents que arrancam sozinhos, com interruptor; e quatro tune-ups (snapshots do Time Machine, índice do Mail, cache de DNS e Spotlight). Não há "libertar RAM" de propósito: o macOS usa a memória livre como cache, e forçá-la a ficar livre só torna as apps mais lentas a reabrir.
 
 **Segurança:**
 - vai para o Lixo por omissão e tem modo de simulação;
