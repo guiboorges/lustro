@@ -139,7 +139,7 @@ public final class ProcessMonitor: @unchecked Sendable {
             || path.hasPrefix("/Library/Developer/CommandLineTools/")
     }
 
-    static func displayName(ofApp path: String) -> String {
+    public static func displayName(ofApp path: String) -> String {
         let bundle = Bundle(path: path)
         let name = bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
             ?? bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -148,7 +148,7 @@ public final class ProcessMonitor: @unchecked Sendable {
 
     // MARK: - Kernel queries
 
-    private static func allPIDs() -> [Int32] {
+    static func allPIDs() -> [Int32] {
         let estimate = proc_listallpids(nil, 0)
         guard estimate > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(estimate) + 64)
@@ -156,7 +156,7 @@ public final class ProcessMonitor: @unchecked Sendable {
         return Array(pids.prefix(Int(max(count, 0))))
     }
 
-    private static func usage(_ pid: Int32) -> (cpuNanos: UInt64, footprint: UInt64)? {
+    static func usage(_ pid: Int32) -> (cpuNanos: UInt64, footprint: UInt64)? {
         var info = rusage_info_v4()
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
@@ -167,13 +167,13 @@ public final class ProcessMonitor: @unchecked Sendable {
         return (ticks * timebase.numer / timebase.denom, info.ri_phys_footprint)
     }
 
-    private static func path(_ pid: Int32) -> String? {
+    static func path(_ pid: Int32) -> String? {
         var buffer = [CChar](repeating: 0, count: 4096)
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         return string(buffer)
     }
 
-    private static func name(_ pid: Int32) -> String? {
+    static func name(_ pid: Int32) -> String? {
         var buffer = [CChar](repeating: 0, count: 256)
         guard proc_name(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         return string(buffer)
@@ -183,13 +183,13 @@ public final class ProcessMonitor: @unchecked Sendable {
         String(decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
     }
 
-    private static func bsdInfo(_ pid: Int32) -> proc_bsdinfo? {
+    static func bsdInfo(_ pid: Int32) -> proc_bsdinfo? {
         var info = proc_bsdinfo()
         let size = Int32(MemoryLayout<proc_bsdinfo>.size)
         return proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size ? info : nil
     }
 
-    private static func startDate(_ pid: Int32) -> Date? {
+    static func startDate(_ pid: Int32) -> Date? {
         guard let info = bsdInfo(pid), info.pbi_start_tvsec > 0 else { return nil }
         return Date(timeIntervalSince1970: TimeInterval(info.pbi_start_tvsec) + TimeInterval(info.pbi_start_tvusec) / 1e6)
     }

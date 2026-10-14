@@ -19,6 +19,7 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 | **Space Lens** | A treemap and sorted list of what takes up space in any folder. Browse in, select, remove. |
 | **Uninstaller** | Removes an app together with its preferences, caches, containers, saved state and launch agents. |
 | **Maintenance** | Live CPU, memory pressure and temperature; the processes using the most CPU or memory, with a plain-language alert when one runs away (and a safe way to quit it); the launch agents that start on their own, with on/off switches; and four tune-ups: thin Time Machine snapshots, compact Mail's index, flush the DNS cache and rebuild Spotlight. |
+| **Dev Activity** | What you left running, grouped by where it started: AI agent sessions (Claude Code, Codex, Gemini CLI, Cursor Agent, Aider, OpenCode…) with everything they spawned (MCP servers, tool commands, sub-agents), commands running in each terminal, servers started by apps, and **orphans**: dev servers and tools that kept running after their terminal or session ended. Also every listening port (flagging ones open to your network) and the Docker/OrbStack/Colima VM with per-container usage. Command lines are shown with secrets hidden. |
 | **History** | Every removal, with one-click restore for items still in the Trash. |
 
 ### Why there's no "Free up RAM"
@@ -42,6 +43,7 @@ Cleaning tools delete things. Lustro is designed so that a mistake is hard to ma
 - **Caution items are never preselected,** for example Xcode archives, iPhone backups and local AI models.
 - **Processes are asked, not killed.** Quitting a process sends it a normal quit request (apps get to ask about unsaved work); Force Quit is offered only if it doesn't respond within 10 seconds. macOS processes and other users' processes can't be quit from Lustro.
 - **Launch agents are switched off, not deleted.** Turning one off uses launchd's own disabled list, so it can be turned back on at any time. Only agents whose app is gone can be removed, and they go to the Trash and into History.
+- **Command lines are redacted.** Tokens, passwords, API keys and credentials in URLs are masked before anything is shown or copied.
 - **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog; Lustro doesn't install a privileged helper.
 
 ## Privacy
@@ -108,6 +110,7 @@ Lustro is an independent project and is not affiliated with any commercial Mac c
 - **Dev Purge:** `node_modules`, `target`, `.venv`, `.next` e outros artefactos de projetos que podem ser reconstruídos. Só aparecem quando existe um ficheiro de projeto que prove o que são.
 - **Space Lens:** mapa do que ocupa espaço numa pasta.
 - **Desinstalador:** remove apps juntamente com os ficheiros de suporte, que são encontrados pelo bundle ID exato.
+- **Dev Activity:** o que ficou a correr, agrupado pela origem: sessões de agentes de IA (Claude Code, Codex, Gemini CLI…) com os processos que lançaram, comandos em cada terminal, servidores abertos por apps e processos órfãos (servidores que continuaram depois de o terminal ou a sessão acabar). Mostra também as portas abertas (com aviso quando estão expostas à rede) e a VM do Docker. As linhas de comando aparecem sem segredos.
 - **Manutenção:** CPU, pressão de memória e temperatura em tempo real; os processos mais pesados, com um alerta quando um fica descontrolado; os launch agents que arrancam sozinhos, com interruptor; e quatro tune-ups (snapshots do Time Machine, índice do Mail, cache de DNS e Spotlight). Não há "libertar RAM" de propósito: o macOS usa a memória livre como cache, e forçá-la a ficar livre só torna as apps mais lentas a reabrir.
 
 **Segurança:**

@@ -3,8 +3,9 @@ import SQLite3
 
 /// Runs a command-line tool and returns its exit status and combined output. Blocks: call off the main thread.
 public enum Shell {
+    /// `timeout` stops the tool if it hangs (e.g. a CLI waiting on a daemon that doesn't answer).
     @discardableResult
-    public static func run(_ tool: String, _ arguments: [String]) -> (status: Int32, output: String) {
+    public static func run(_ tool: String, _ arguments: [String], timeout: TimeInterval? = nil) -> (status: Int32, output: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool)
         process.arguments = arguments
@@ -15,6 +16,11 @@ public enum Shell {
             try process.run()
         } catch {
             return (-1, error.localizedDescription)
+        }
+        if let timeout {
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [process] in
+                if process.isRunning { process.terminate() }
+            }
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()

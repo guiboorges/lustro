@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 enum Module: String, CaseIterable, Identifiable {
-    case overview, cleanup, devPurge, spaceLens, uninstaller, maintenance, history, settings
+    case overview, cleanup, devPurge, spaceLens, uninstaller, maintenance, devActivity, history, settings
     var id: String { rawValue }
 
     var title: String {
@@ -58,6 +58,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceLens: "Space Lens"
         case .uninstaller: "Uninstaller"
         case .maintenance: "Maintenance"
+        case .devActivity: "Dev Activity"
         case .history: "History"
         case .settings: "Settings"
         }
@@ -71,6 +72,7 @@ enum Module: String, CaseIterable, Identifiable {
         case .spaceLens: "chart.pie"
         case .uninstaller: "shippingbox"
         case .maintenance: "gauge.with.needle"
+        case .devActivity: "terminal"
         case .history: "clock.arrow.circlepath"
         case .settings: "slider.horizontal.3"
         }
@@ -86,10 +88,11 @@ struct RootView: View {
     @State private var spaceLens = SpaceLensModel()
     @State private var uninstaller = UninstallerModel()
     @State private var maintenance = MaintenanceModel()
+    @State private var devActivity = DevActivityModel()
 
     var body: some View {
         HStack(spacing: 0) {
-            Sidebar(module: $module, cleanup: cleanup, devPurge: devPurge, maintenance: maintenance)
+            Sidebar(module: $module, cleanup: cleanup, devPurge: devPurge, maintenance: maintenance, devActivity: devActivity)
             panel
                 .padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 22)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -107,6 +110,7 @@ struct RootView: View {
         .task {
             startInitialScans()
             maintenance.startSampling()
+            devActivity.startSampling()
         }
     }
 
@@ -118,6 +122,7 @@ struct RootView: View {
         case .spaceLens: SpaceLensView(model: spaceLens)
         case .uninstaller: UninstallerView(model: uninstaller)
         case .maintenance: MaintenanceView(model: maintenance)
+        case .devActivity: DevActivityView(model: devActivity)
         case .history: HistoryView()
         case .settings: SettingsView()
         }
@@ -158,6 +163,7 @@ struct Sidebar: View {
     let cleanup: ReviewModel
     let devPurge: ReviewModel
     let maintenance: MaintenanceModel
+    let devActivity: DevActivityModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -176,6 +182,7 @@ struct Sidebar: View {
             item(.spaceLens)
             item(.uninstaller)
             item(.maintenance, detail: maintenance.runaway == nil ? nil : "1 alert")
+            item(.devActivity, detail: orphanDetail)
             item(.history, detail: app.historyEntries.isEmpty ? nil : "\(app.historyEntries.count) run\(app.historyEntries.count == 1 ? "" : "s")")
             Spacer()
             StorageCard(freeable: cleanup.selectedSize + devPurge.selectedSize)
@@ -186,10 +193,15 @@ struct Sidebar: View {
         .frame(width: 244)
     }
 
+    private var orphanDetail: String? {
+        let count = devActivity.report.orphans.count
+        return count == 0 ? nil : "\(count) orphan\(count == 1 ? "" : "s")"
+    }
+
     private func item(_ item: Module, detail: String? = nil) -> some View {
         let selected = module == item
         return Button { module = item } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Circle()
                     .fill(selected ? Color.white : Color.white.opacity(0.16))
                     .frame(width: 30, height: 30)
@@ -199,11 +211,14 @@ struct Sidebar: View {
                             .foregroundStyle(selected ? Theme.rust700 : Theme.onBrand)
                     }
                 Text(item.title).font(selected ? .lBodyStrong : .lBody).foregroundStyle(Theme.onBrand)
-                    .lineLimit(1).layoutPriority(1)
-                Spacer(minLength: 4)
-                if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.onBrandMuted).monospacedDigit().fixedSize() }
+                    .lineLimit(1).fixedSize()
+                Spacer(minLength: 2)
+                if let detail {
+                    Text(detail).font(.lCaption).foregroundStyle(Theme.onBrandMuted).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                }
             }
-            .padding(.leading, 8).padding(.trailing, 14)
+            .padding(.leading, 8).padding(.trailing, 10)
             .frame(height: 44)
             .background(selected ? Color.white.opacity(0.24) : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
