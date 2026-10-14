@@ -11,17 +11,31 @@ struct LustroApp: App {
         WindowGroup {
             RootView()
                 .environment(app)
-                .frame(minWidth: 1000, minHeight: 640)
+                .frame(minWidth: 1240, minHeight: 780)
+                // The v2 design is light-only for now; a dark palette can follow.
+                .preferredColorScheme(.light)
+                .tint(Theme.orange500)
         }
-        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 1340, height: 860)
 
         Settings {
-            SettingsView().environment(app)
+            SettingsView()
+                .environment(app)
+                .padding(28)
+                .frame(width: 760, height: 720)
+                .background(Theme.canvas)
+                .preferredColorScheme(.light)
         }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        Typeface.registerBundledFonts()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Needed when launched as a bare executable (e.g. `swift run`) rather than from the .app bundle.
         NSApp.setActivationPolicy(.regular)
@@ -33,11 +47,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 enum Module: String, CaseIterable, Identifiable {
-    case cleanup, devPurge, spaceLens, uninstaller, history, settings
+    case overview, cleanup, devPurge, spaceLens, uninstaller, history, settings
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .overview: "Overview"
         case .cleanup: "Cleanup"
         case .devPurge: "Dev Purge"
         case .spaceLens: "Space Lens"
@@ -49,6 +64,7 @@ enum Module: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .overview: "internaldrive"
         case .cleanup: "sparkles"
         case .devPurge: "hammer"
         case .spaceLens: "chart.pie"
@@ -57,23 +73,11 @@ enum Module: String, CaseIterable, Identifiable {
         case .settings: "slider.horizontal.3"
         }
     }
-
-    /// Module colours, matching the sidebar icons in the design.
-    var tint: Color {
-        switch self {
-        case .cleanup: .blue
-        case .devPurge: .orange
-        case .spaceLens: .purple
-        case .uninstaller: .pink
-        case .history: .indigo
-        case .settings: .gray
-        }
-    }
 }
 
 struct RootView: View {
     @Environment(AppModel.self) private var app
-    @State private var module: Module? = DevSnapshot.initialModule ?? .cleanup
+    @State private var module: Module = DevSnapshot.initialModule ?? .overview
     // Models live here so results survive switching between modules.
     @State private var cleanup = ReviewModel()
     @State private var devPurge = ReviewModel()
@@ -81,81 +85,125 @@ struct RootView: View {
     @State private var uninstaller = UninstallerModel()
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $module) {
-                Section {
-                    navItem(.cleanup, detail: cleanup.groups.isEmpty ? nil : cleanup.selectedSize.formattedBytes)
-                    navItem(.devPurge, detail: devPurge.groups.isEmpty ? nil : devPurge.selectedSize.formattedBytes)
-                    navItem(.spaceLens)
-                    navItem(.uninstaller)
-                }
-                Section("Activity") {
-                    navItem(.history, detail: app.historyEntries.isEmpty ? nil : "\(app.historyEntries.count) run\(app.historyEntries.count == 1 ? "" : "s")")
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 8) {
-                    StorageCard(freeable: cleanup.selectedSize + devPurge.selectedSize)
-                    Button { module = .settings } label: {
-                        Label(Module.settings.title, systemImage: Module.settings.symbol)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-                            .background(module == .settings ? Color.primary.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(10)
-            }
-            .navigationSplitViewColumnWidth(min: 210, ideal: 230)
-        } detail: {
-            switch module ?? .cleanup {
-            case .cleanup: CleanupView(model: cleanup)
-            case .devPurge: DevPurgeView(model: devPurge)
-            case .spaceLens: SpaceLensView(model: spaceLens)
-            case .uninstaller: UninstallerView(model: uninstaller)
-            case .history: HistoryView()
-            case .settings: SettingsView()
-            }
+        HStack(spacing: 0) {
+            Sidebar(module: $module, cleanup: cleanup, devPurge: devPurge)
+            panel
+                .padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 22)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .padding([.top, .bottom, .trailing], 10)
         }
+        .background(Theme.frameGradient)
+        .ignoresSafeArea()
+        .font(.lBody)
+        .foregroundStyle(Theme.textPrimary)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             app.refreshPermissions()
             app.refreshDisk()
         }
-        .task {
-            guard DevSnapshot.autoScan, let catalog = app.catalog else { return }
-            switch module {
-            case .cleanup:
-                let scanner = JunkScanner(catalog: catalog, policy: app.settings.policy(), hasFullDiskAccess: app.hasFullDiskAccess)
-                cleanup.scan(preselection: app.settings.preselection) { await scanner.scan(progress: $0) }
-            case .devPurge:
-                let scanner = ProjectArtifactScanner(roots: app.settings.resolvedProjectRoots, policy: app.settings.policy())
-                devPurge.scan(preselection: app.settings.preselection) { await scanner.scan(progress: $0) }
-            case .spaceLens:
-                spaceLens.build(root: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(DevSnapshot.spaceLensRoot))
-            default:
-                break
-            }
+        .task { startInitialScans() }
+    }
+
+    @ViewBuilder private var panel: some View {
+        switch module {
+        case .overview: OverviewView(module: $module, cleanup: cleanup, devPurge: devPurge, spaceLens: spaceLens, rescan: rescanAll)
+        case .cleanup: CleanupView(model: cleanup)
+        case .devPurge: DevPurgeView(model: devPurge)
+        case .spaceLens: SpaceLensView(model: spaceLens)
+        case .uninstaller: UninstallerView(model: uninstaller)
+        case .history: HistoryView()
+        case .settings: SettingsView()
         }
     }
 
-    private func navItem(_ item: Module, detail: String? = nil) -> some View {
-        HStack {
-            Label {
-                Text(item.title)
-            } icon: {
-                Image(systemName: item.symbol).foregroundStyle(item.tint)
-            }
-            Spacer()
-            if let detail {
-                Text(detail).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-            }
+    /// Scanning only reads the disk, so the Overview can show real numbers on launch.
+    private func startInitialScans() {
+        if DevSnapshot.autoScan, module == .spaceLens {
+            spaceLens.build(root: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(DevSnapshot.spaceLensRoot))
         }
-        .tag(item)
+        if cleanup.phase == .idle { scanCleanup() }
+        if devPurge.phase == .idle { scanDevPurge() }
+    }
+
+    private func rescanAll() {
+        scanCleanup()
+        scanDevPurge()
+    }
+
+    private func scanCleanup() {
+        guard let catalog = app.catalog else { return }
+        let scanner = JunkScanner(catalog: catalog, policy: app.settings.policy(), hasFullDiskAccess: app.hasFullDiskAccess,
+                                  disabledCategories: Set(app.settings.disabledCategories), keepNewestBackup: app.settings.keepNewestBackup)
+        cleanup.scan(preselection: app.settings.preselection) { await scanner.scan(progress: $0) }
+    }
+
+    private func scanDevPurge() {
+        let scanner = ProjectArtifactScanner(roots: app.settings.resolvedProjectRoots, policy: app.settings.policy(),
+                                             inactiveDaysForAutoSelect: app.settings.inactiveDaysForAutoSelect)
+        devPurge.scan(preselection: app.settings.preselection) { await scanner.scan(progress: $0) }
     }
 }
 
-/// Disk usage card at the bottom of the sidebar.
+/// Navigation on the gradient frame.
+struct Sidebar: View {
+    @Environment(AppModel.self) private var app
+    @Binding var module: Module
+    let cleanup: ReviewModel
+    let devPurge: ReviewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white)
+                    .frame(width: 34, height: 34)
+                    .overlay { Image(systemName: "sparkles").font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.rust700) }
+                Text("Lustro").font(.lTitle2).foregroundStyle(Theme.onBrand)
+            }
+            .padding(.leading, 4).padding(.top, 46).padding(.bottom, 26)
+
+            Text("Navigation").overline(Theme.onBrandMuted).padding(.leading, 6).padding(.bottom, 6)
+            item(.overview)
+            item(.cleanup, detail: cleanup.groups.isEmpty ? nil : cleanup.selectedSize.formattedBytes)
+            item(.devPurge, detail: devPurge.groups.isEmpty ? nil : devPurge.selectedSize.formattedBytes)
+            item(.spaceLens)
+            item(.uninstaller)
+            item(.history, detail: app.historyEntries.isEmpty ? nil : "\(app.historyEntries.count) run\(app.historyEntries.count == 1 ? "" : "s")")
+            Spacer()
+            StorageCard(freeable: cleanup.selectedSize + devPurge.selectedSize)
+                .padding(.bottom, 8)
+            item(.settings)
+        }
+        .padding(.horizontal, 18).padding(.bottom, 14)
+        .frame(width: 244)
+    }
+
+    private func item(_ item: Module, detail: String? = nil) -> some View {
+        let selected = module == item
+        return Button { module = item } label: {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(selected ? Color.white : Color.white.opacity(0.16))
+                    .frame(width: 30, height: 30)
+                    .overlay {
+                        Image(systemName: item.symbol)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(selected ? Theme.rust700 : Theme.onBrand)
+                    }
+                Text(item.title).font(selected ? .lBodyStrong : .lBody).foregroundStyle(Theme.onBrand)
+                    .lineLimit(1).layoutPriority(1)
+                Spacer(minLength: 4)
+                if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.onBrandMuted).monospacedDigit() }
+            }
+            .padding(.leading, 8).padding(.trailing, 14)
+            .frame(height: 44)
+            .background(selected ? Color.white.opacity(0.24) : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Disk usage, as a glass card on the gradient.
 struct StorageCard: View {
     @Environment(AppModel.self) private var app
     let freeable: Int64
@@ -163,25 +211,23 @@ struct StorageCard: View {
     var body: some View {
         if let disk = app.disk {
             let used = max(disk.total - disk.available, 0)
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Macintosh HD", systemImage: "internaldrive").font(.body.weight(.semibold))
+            VStack(alignment: .leading, spacing: 10) {
+                Label { Text("Macintosh HD").font(.lCalloutStrong) } icon: { Image(systemName: "internaldrive") }
+                    .foregroundStyle(Theme.onBrand)
                 GeometryReader { geo in
                     let total = CGFloat(max(disk.total, 1))
-                    HStack(spacing: 0) {
-                        Rectangle().fill(.blue).frame(width: geo.size.width * CGFloat(max(used - freeable, 0)) / total)
-                        Rectangle().fill(.orange).frame(width: geo.size.width * CGFloat(min(freeable, used)) / total)
-                        Spacer(minLength: 0)
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.24))
+                        Capsule().fill(Color.white).frame(width: geo.size.width * CGFloat(used) / total)
                     }
-                    .background(Color.primary.opacity(0.08))
                 }
                 .frame(height: 6)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
-                Text("\(used.formattedBytes) of \(disk.total.formattedBytes) used" + (freeable > 0 ? " · \(freeable.formattedBytes) can be freed" : ""))
-                    .font(.caption2).foregroundStyle(.secondary)
+                Text("\(used.formattedBytes) of \(disk.total.formattedBytes) used" + (freeable > 0 ? "\n\(freeable.formattedBytes) can be freed" : ""))
+                    .font(.lCaption).foregroundStyle(Theme.onBrandMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(12)
-            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+            .padding(14)
+            .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 }

@@ -13,6 +13,7 @@ Native SwiftUI · no network access · no telemetry · moves to Trash by default
 
 | Module | What it finds |
 |---|---|
+| **Overview** | A dashboard of what can be freed, disk usage, junk by type, your largest folders and what can still be restored. |
 | **Cleanup** | App caches and logs, Xcode Derived Data, package-manager caches (Homebrew, npm, Yarn, pip, Cargo, Go…), editor caches, leftovers from AI tools (Claude Code, Claude Desktop, Codex, Gemini CLI, Cursor, OpenCode), local AI models, iOS update files and backups, installers in Downloads, and the Trash. |
 | **Dev Purge** | `node_modules`, `target`, `.venv`, `.next`, `build`, `DerivedData` and ~40 other regenerable folders inside your projects. Projects you haven't touched in 30 days are preselected. |
 | **Space Lens** | A treemap and sorted list of what takes up space in any folder. Browse in, select, remove. |
@@ -79,6 +80,11 @@ Sources/Lustro       SwiftUI app
 Tests               unit tests, run against a throwaway fake home folder
 scripts             app bundle and icon builders
 ```
+
+## Credits
+
+- Typeface: [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) by Tokotype, bundled under the SIL Open Font License 1.1 (`Resources/Fonts/OFL.txt`).
+- Icons: SF Symbols (macOS).
 
 ## Disclaimer
 

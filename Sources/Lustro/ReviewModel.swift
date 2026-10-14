@@ -24,6 +24,7 @@ final class ReviewModel {
     private(set) var progressFraction: Double?
     private(set) var groups: [ScanGroup] = []
     private(set) var lastReport: RemovalReport?
+    private(set) var lastScanDate: Date?
     var selection = Set<String>()
     var expanded = Set<String>()
     /// Optional view filter (e.g. Dev Purge "inactive only") and ordering.
@@ -79,6 +80,7 @@ final class ReviewModel {
             groups = result
             applyPreselection(preselection)
             expanded = []
+            lastScanDate = Date()
             phase = .reviewing
         }
     }

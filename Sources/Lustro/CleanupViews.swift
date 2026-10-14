@@ -17,106 +17,94 @@ struct CleanupView: View {
             )
             ReviewView(model: model, module: "Cleanup", title: "Cleanup",
                        subtitle: "Caches, logs and leftovers from apps, developer tools and AI tools.",
-                       symbol: "sparkles", tint: Module.cleanup.tint,
+                       symbol: Module.cleanup.symbol,
                        scanner: { progress in await scanner.scan(progress: progress) }) {
-                VStack(spacing: 8) {
-                    Text("\(scanner.activeCategories.count) categories ready to scan").font(.title3)
-                    if !app.hasFullDiskAccess { FullDiskAccessHint() }
-                }
+                if !app.hasFullDiskAccess { FullDiskAccessHint() }
             } accessory: {
-                SummaryCard(model: model)
+                HStack(spacing: 16) {
+                    SummaryCard(model: model)
+                    StatusCard(symbol: app.settings.removalMode == .trash ? "checkmark.shield" : "exclamationmark.shield",
+                               tint: app.settings.removalMode == .trash && !app.settings.dryRun ? Theme.safe : Theme.review,
+                               title: app.settings.dryRun ? "Dry run is on" : app.settings.removalMode == .trash ? "Goes to the Trash" : "Deletes permanently",
+                               detail: app.settings.dryRun ? "Nothing will actually be removed" : app.settings.removalMode == .trash ? "Put anything back from History" : "Can't be undone · change in Settings")
+                    let open = model.runningConflicts(with: ActionBar.runningApps())
+                    StatusCard(symbol: open.isEmpty ? "checkmark.circle" : "exclamationmark.triangle",
+                               tint: open.isEmpty ? Theme.safe : Theme.review,
+                               title: open.isEmpty ? "No open apps affected" : "\(open.count) app\(open.count == 1 ? " is" : "s are") open",
+                               detail: open.isEmpty ? "Nothing needs to quit" : "Their files wait until they quit")
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
         } else {
-            ContentUnavailableView("Rules could not be loaded", systemImage: "exclamationmark.triangle",
-                                   description: Text(app.catalogError ?? ""))
+            PanelPlaceholder(symbol: "exclamationmark.triangle", title: "Rules could not be loaded", message: app.catalogError ?? "") { EmptyView() }
         }
     }
 }
 
-/// Big selected total, a per-section bar and the safety summary.
+/// Selected total with a segmented bar per section.
 struct SummaryCard: View {
-    @Environment(AppModel.self) private var app
     let model: ReviewModel
 
     var body: some View {
         let totals = model.sectionTotals
         let found = max(model.totalSize, 1)
-        HStack(alignment: .center, spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(model.selectedSize.formattedBytes).font(.largeTitle.weight(.bold).monospacedDigit())
-                    Text("selected of \(model.totalSize.formattedBytes) found · \(model.selectedItems.count) of \(model.allItems.count) items")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-                GeometryReader { geo in
-                    HStack(spacing: 2) {
-                        ForEach(totals, id: \.name) { section in
-                            let tint = Palette.color(Palette.tint(forSection: section.name))
-                            let width = geo.size.width * CGFloat(section.total) / CGFloat(found)
-                            ZStack(alignment: .leading) {
-                                Rectangle().fill(tint.opacity(0.25))
-                                Rectangle().fill(tint)
-                                    .frame(width: width * CGFloat(section.selected) / CGFloat(max(section.total, 1)))
-                            }
-                            .frame(width: max(width - 2, 0))
-                        }
-                    }
-                }
-                .frame(height: 8)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                HStack(spacing: 16) {
-                    ForEach(totals, id: \.name) { section in
-                        HStack(spacing: 6) {
-                            Circle().fill(Palette.color(Palette.tint(forSection: section.name)).opacity(section.selected > 0 ? 1 : 0.35))
-                                .frame(width: 8, height: 8)
-                            Text("\(section.name) \(section.total.formattedBytes)\(section.selected == 0 ? " · not selected" : "")")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(number(model.selectedSize)).font(.lMetric).monospacedDigit()
+                Text("\(unit(model.selectedSize)) selected").font(.lTitle3).foregroundStyle(Theme.textSecondary)
+                Text("of \(model.totalSize.formattedBytes) found · \(model.selectedItems.count) of \(model.allItems.count) items")
+                    .font(.lCallout).foregroundStyle(Theme.textTertiary).lineLimit(1)
+            }
+            GeometryReader { geo in
+                HStack(spacing: 3) {
+                    ForEach(Array(totals.enumerated()), id: \.element.name) { index, section in
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Palette.sectionColor(index).opacity(section.selected > 0 ? 1 : 0.35))
+                            .frame(width: max(geo.size.width * CGFloat(section.total) / CGFloat(found) - 3, 4))
                     }
                 }
             }
-            Divider().frame(height: 60)
-            VStack(alignment: .leading, spacing: 10) {
-                SafetyLine(symbol: app.settings.removalMode == .trash ? "checkmark.shield" : "exclamationmark.shield",
-                           tint: app.settings.removalMode == .trash ? .green : .red,
-                           title: app.settings.dryRun ? "Dry run is on" : app.settings.removalMode == .trash ? "Goes to the Trash" : "Deletes permanently",
-                           detail: app.settings.dryRun ? "Nothing will actually be removed" : app.settings.removalMode == .trash ? "Put anything back from History" : "Can't be undone. Change this in Settings")
-                let open = model.runningConflicts(with: ActionBar.runningApps())
-                if !open.isEmpty {
-                    SafetyLine(symbol: "exclamationmark.triangle", tint: .orange,
-                               title: "\(open.count) app\(open.count == 1 ? " is" : "s are") open",
-                               detail: "Their files wait until they quit")
+            .frame(height: 10)
+            HStack(spacing: 16) {
+                ForEach(Array(totals.enumerated()), id: \.element.name) { index, section in
+                    HStack(spacing: 6) {
+                        Circle().fill(Palette.sectionColor(index).opacity(section.selected > 0 ? 1 : 0.35)).frame(width: 8, height: 8)
+                        Text("\(section.name) \(section.total.formattedBytes)\(section.selected == 0 ? " · not selected" : "")")
+                            .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                    }
                 }
             }
-            .frame(width: 250, alignment: .leading)
         }
-        .padding(16)
-        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
-        .padding(.horizontal, 28)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 20).padding(.vertical, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .lustroCard()
     }
 }
 
-struct SafetyLine: View {
+struct StatusCard: View {
     let symbol: String
     let tint: Color
     let title: String
     let detail: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(tint).frame(width: 16)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.body.weight(.semibold))
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Tile(symbol: symbol, background: tint.opacity(0.12), foreground: tint, size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.lCalloutStrong)
+                Text(detail).font(.lCaption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
+        .padding(16)
+        .frame(width: 232)
+        .frame(maxHeight: .infinity)
+        .lustroCard()
     }
 }
 
 struct DevPurgeView: View {
-    enum Filter: String, CaseIterable { case all = "All projects", inactive = "Inactive", largest = "Largest first" }
+    enum Filter: Hashable { case all, inactive, largest }
 
     @Environment(AppModel.self) private var app
     let model: ReviewModel
@@ -127,33 +115,40 @@ struct DevPurgeView: View {
         let days = app.settings.inactiveDaysForAutoSelect
         let scanner = ProjectArtifactScanner(roots: roots, policy: app.settings.policy(), inactiveDaysForAutoSelect: days)
         ReviewView(model: model, module: "Dev Purge", title: "Dev Purge",
-                   subtitle: "Build folders and dependencies your projects can rebuild. Only flagged when a project file proves what they are.",
-                   symbol: "hammer", tint: Module.devPurge.tint,
+                   subtitle: "Build folders and dependencies your projects can rebuild — only flagged when a project file proves what they are.",
+                   symbol: Module.devPurge.symbol,
                    scanner: { progress in await scanner.scan(progress: progress) },
                    activityDays: days) {
-            VStack(spacing: 8) {
-                Text("Looks for projects in:").font(.title3)
-                Text(roots.map { $0.path.abbreviatingHome }.joined(separator: " · "))
-                    .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 520)
-                Text("Projects untouched for \(days)+ days are preselected.").font(.caption).foregroundStyle(.secondary)
-            }
+            Text("Looks in " + roots.map { $0.path.abbreviatingHome }.joined(separator: " · "))
+                .font(.lCaption).foregroundStyle(Theme.textSecondary)
         } accessory: {
-            HStack(spacing: 12) {
-                Picker("Show", selection: $filter) {
-                    Text("All projects").tag(Filter.all)
-                    Text("Inactive \(days)+ days").tag(Filter.inactive)
-                    Text("Largest first").tag(Filter.largest)
+            VStack(spacing: 16) {
+                let inactive = model.groups.filter { ($0.lastActivity ?? .distantPast) < Date().addingTimeInterval(-Double(days) * 86_400) }
+                let largest = model.allItems.max { $0.size < $1.size }
+                HStack(spacing: 16) {
+                    KPICard(label: "Rebuildable", value: number(model.totalSize), unit: unit(model.totalSize),
+                            detail: "in \(model.groups.count) projects · \(model.allItems.count) folders",
+                            bars: model.groups.prefix(5).map { Double($0.totalSize) }.reversed())
+                    KPICard(label: "Inactive \(days)+ days", value: "\(inactive.count)", unit: "projects",
+                            detail: "\(inactive.reduce(Int64(0)) { $0 + $1.totalSize }.formattedBytes) preselected")
+                    KPICard(label: "Largest", value: largest.map { number($0.size) } ?? "–", unit: largest.map { unit($0.size) } ?? "",
+                            detail: largest.map { "\($0.url.lastPathComponent) · \($0.url.deletingLastPathComponent().lastPathComponent)" } ?? "")
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                Spacer()
-                Label(roots.map { $0.path.abbreviatingHome }.joined(separator: " · "), systemImage: "folder")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                Button("Change…") { addRoot() }.buttonStyle(.link).font(.caption.weight(.semibold))
+                HStack(spacing: 12) {
+                    Segmented(options: [(.all, "All projects"), (.inactive, "Inactive \(days)+ days"), (.largest, "Largest first")], selection: $filter)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder").foregroundStyle(Theme.textSecondary)
+                        Text(roots.map { $0.path.abbreviatingHome }.joined(separator: " · ")).lineLimit(1).truncationMode(.middle)
+                            .foregroundStyle(Theme.textSecondary)
+                        Button("Change") { addRoot() }.buttonStyle(.plain).foregroundStyle(Theme.rust700)
+                    }
+                    .font(.lCaption)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border))
+                }
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 8)
         }
         .onChange(of: filter, initial: true) { _, value in
             model.sortLargestFirst = value == .largest
@@ -179,14 +174,14 @@ struct FullDiskAccessHint: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.shield").foregroundStyle(.orange)
-            Text("Grant Full Disk Access to also clean sandboxed app caches, Mail downloads and device backups.")
-                .font(.callout).foregroundStyle(.secondary)
-            Button("Open Settings") { app.openFullDiskAccessSettings() }.buttonStyle(.link)
+        HStack(spacing: 10) {
+            Image(systemName: "lock.shield").foregroundStyle(Theme.review)
+            Text("Grant Full Disk Access to include sandboxed app caches, Mail downloads and iPhone backups.")
+                .font(.lCaption).foregroundStyle(Theme.textSecondary)
+            Button("Open Settings") { app.openFullDiskAccessSettings() }.buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
         }
-        .padding(10)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
-        .frame(maxWidth: 560)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(Theme.sunken, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(maxWidth: 600)
     }
 }

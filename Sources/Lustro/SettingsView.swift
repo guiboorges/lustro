@@ -7,160 +7,162 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var app = app
-        Form {
-            Section("Removing files") {
-                Picker(selection: $app.settings.removalMode) {
-                    Text("Move to Trash").tag(RemovalMode.trash)
-                    Text("Delete permanently").tag(RemovalMode.permanent)
-                } label: {
-                    LabeledText("When cleaning", "Trash lets you restore anything from History until you empty it. Permanent deletion can't be undone.")
-                }
-                .pickerStyle(.segmented)
-                Toggle(isOn: $app.settings.dryRun) {
-                    LabeledText("Dry run", "Show what would be removed without removing anything.")
-                }
-                .toggleStyle(.switch)
-                Toggle(isOn: $app.settings.reopenAppsAfterCleaning) {
-                    LabeledText("Reopen apps after cleaning", "Apps Lustro asked to quit are reopened in the background.")
-                }
-                .toggleStyle(.switch)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Settings").font(.lTitle1)
 
-            Section {
-                Picker(selection: $app.settings.preselection) {
-                    Text("Off").tag(PreselectionMode.off)
-                    Text("Smart").tag(PreselectionMode.smart)
-                    Text("All safe").tag(PreselectionMode.allSafe)
-                } label: {
-                    LabeledText("Select automatically", "Smart preselects safe items and skips anything that needs a look.")
-                }
-                .pickerStyle(.segmented)
-                Toggle(isOn: $app.settings.keepNewestBackup) {
-                    LabeledText("Keep the newest iPhone backup", "Older backups of the same device are still offered.")
-                }
-                .toggleStyle(.switch)
-                Picker("Dev Purge: preselect projects untouched for", selection: $app.settings.inactiveDaysForAutoSelect) {
-                    Text("14 days").tag(14)
-                    Text("30 days").tag(30)
-                    Text("90 days").tag(90)
-                }
-                .pickerStyle(.segmented)
-            } header: {
-                Text("Preselection")
-            } footer: {
-                Text("Caution items, like iPhone backups and local AI models, are never preselected.")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Section("Permissions") {
-                LabeledContent {
-                    HStack {
-                        Label(app.hasFullDiskAccess ? "Granted" : "Not granted",
-                              systemImage: app.hasFullDiskAccess ? "checkmark" : "xmark.circle")
-                            .foregroundStyle(app.hasFullDiskAccess ? .green : .secondary)
-                            .font(.callout.weight(.semibold))
-                        Button("Open System Settings") { app.openFullDiskAccessSettings() }
-                        Button("Check Again") { app.refreshPermissions() }
+                group("Removing files", symbol: "trash") {
+                    row("When cleaning", "Trash lets you put anything back from History. Permanent deletion can't be undone.") {
+                        Segmented(options: [(RemovalMode.trash, "Move to Trash"), (.permanent, "Delete permanently")],
+                                  selection: $app.settings.removalMode, ink: true)
                     }
-                } label: {
-                    LabeledText("Full Disk Access", "Needed for sandboxed app caches, Mail downloads and iPhone backups. Without it those are skipped.")
+                    toggleRow("Dry run", "Show what would be removed without removing anything.", $app.settings.dryRun)
+                    toggleRow("Reopen apps after cleaning", "Apps Lustro asked to quit are reopened in the background.",
+                              $app.settings.reopenAppsAfterCleaning, last: true)
                 }
-            }
 
-            Section("Cleanup categories") {
-                if let catalog = app.catalog {
-                    ForEach(catalog.categories) { category in
-                        Toggle(isOn: Binding(
-                            get: { !app.settings.disabledCategories.contains(category.id) },
-                            set: { on in
-                                if on { app.settings.disabledCategories.removeAll { $0 == category.id } }
-                                else { app.settings.disabledCategories.append(category.id) }
+                group("Preselection", symbol: "sparkles") {
+                    row("Select automatically", "Smart preselects safe items and skips anything that needs a look. Caution items are never preselected.") {
+                        Segmented(options: [(PreselectionMode.off, "Off"), (.smart, "Smart"), (.allSafe, "All safe")],
+                                  selection: $app.settings.preselection, ink: true)
+                    }
+                    toggleRow("Keep the newest iPhone backup", "Older backups of the same device are still offered.", $app.settings.keepNewestBackup)
+                    row("Dev Purge: preselect projects untouched for", nil, last: true) {
+                        Segmented(options: [(14, "14 days"), (30, "30 days"), (90, "90 days")],
+                                  selection: $app.settings.inactiveDaysForAutoSelect, ink: true)
+                    }
+                }
+
+                group("Permissions", symbol: "checkmark.shield") {
+                    row("Full Disk Access", "Needed for sandboxed app caches, Mail downloads and iPhone backups.", last: true) {
+                        HStack(spacing: 10) {
+                            if app.hasFullDiskAccess {
+                                Chip(text: "Granted", tone: .safe)
+                            } else {
+                                Chip(text: "Not granted", tone: .neutral)
+                                Button("Check Again") { app.refreshPermissions() }.buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
                             }
-                        )) {
-                            HStack(spacing: 10) {
-                                IconTile(symbol: category.icon ?? "folder",
-                                         tint: Palette.color(category.tint ?? Palette.tint(forSection: category.section)), size: 22)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    HStack(spacing: 6) {
-                                        Text(category.title)
-                                        RiskBadge(risk: category.risk)
+                            Button("Open System Settings") { app.openFullDiskAccessSettings() }.buttonStyle(OutlineButtonStyle())
+                        }
+                    }
+                }
+
+                group("Cleanup categories", symbol: "list.bullet") {
+                    if let catalog = app.catalog {
+                        ForEach(Array(catalog.categories.enumerated()), id: \.element.id) { index, category in
+                            let colors = Palette.tile(category.risk == .caution ? "red" : category.tint)
+                            Toggle(isOn: Binding(
+                                get: { !app.settings.disabledCategories.contains(category.id) },
+                                set: { on in
+                                    if on { app.settings.disabledCategories.removeAll { $0 == category.id } }
+                                    else { app.settings.disabledCategories.append(category.id) }
+                                }
+                            )) {
+                                HStack(spacing: 12) {
+                                    Tile(symbol: category.icon ?? "folder", background: colors.background, foreground: colors.foreground, size: 30)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        HStack(spacing: 8) { Text(category.title).font(.lBodyStrong); RiskChip(risk: category.risk) }
+                                        Text(category.section).font(.lCaption).foregroundStyle(Theme.textSecondary)
                                     }
-                                    Text(category.section).font(.caption).foregroundStyle(.secondary)
                                 }
                             }
+                            .toggleStyle(LustroToggleStyle())
+                            .padding(.horizontal, 20).padding(.vertical, 10)
+                            .overlay(alignment: .bottom) {
+                                if index < catalog.categories.count - 1 { Rectangle().fill(Theme.border).frame(height: 1) }
+                            }
                         }
-                        .toggleStyle(.switch)
                     }
                 }
-            }
 
-            Section("Dev Purge folders") {
-                PathListEditor(title: "Project folders", paths: $app.settings.projectRoots,
-                               placeholder: "Using defaults: " + ProjectArtifactScanner.defaultRoots()
-                                .map { $0.lastPathComponent }.joined(separator: ", "))
-            }
+                group("Dev Purge folders", symbol: "folder") {
+                    PathListEditor(paths: $app.settings.projectRoots,
+                                   placeholder: "Using defaults: " + ProjectArtifactScanner.defaultRoots().map { $0.lastPathComponent }.joined(separator: ", "))
+                }
 
-            Section {
-                PathListEditor(title: "Never scan or remove", paths: $app.settings.ignoredPaths,
-                               placeholder: "Nothing ignored yet.", allowFiles: true)
-            } header: {
-                Text("Ignore list")
-            } footer: {
-                Text("Right-click any item and choose Always Ignore to add it here.")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                group("Ignore list", symbol: "eye.slash") {
+                    PathListEditor(paths: $app.settings.ignoredPaths,
+                                   placeholder: "Nothing ignored yet. Right-click any item and choose Always Ignore.", allowFiles: true)
+                }
             }
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 12)
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 560, minHeight: 520)
-        .navigationTitle("Settings")
+        .scrollIndicators(.hidden)
         .onAppear { app.refreshPermissions() }
     }
-}
 
-/// Title with a secondary explanation underneath, as used in macOS Settings.
-struct LabeledText: View {
-    let title: String
-    let detail: String
-
-    init(_ title: String, _ detail: String) {
-        self.title = title
-        self.detail = detail
+    private func group<Content: View>(_ title: String, symbol: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label { Text(title).overline() } icon: { Image(systemName: symbol).foregroundStyle(Theme.rust700) }
+                .font(.system(size: 11, weight: .semibold))
+            VStack(spacing: 0) { content() }
+                .lustroCard()
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-            Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    private func row<Control: View>(_ title: String, _ detail: String?, last: Bool = false, @ViewBuilder control: () -> Control) -> some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.lBodyStrong)
+                if let detail { Text(detail).font(.lCaption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true) }
+            }
+            Spacer(minLength: 12)
+            control()
         }
+        .padding(.horizontal, 20).padding(.vertical, 14)
+        .overlay(alignment: .bottom) { if !last { Rectangle().fill(Theme.border).frame(height: 1) } }
+    }
+
+    private func toggleRow(_ title: String, _ detail: String, _ isOn: Binding<Bool>, last: Bool = false) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.lBodyStrong)
+                Text(detail).font(.lCaption).foregroundStyle(Theme.textSecondary)
+            }
+        }
+        .toggleStyle(LustroToggleStyle())
+        .padding(.horizontal, 20).padding(.vertical, 14)
+        .overlay(alignment: .bottom) { if !last { Rectangle().fill(Theme.border).frame(height: 1) } }
     }
 }
 
 struct PathListEditor: View {
-    let title: String
     @Binding var paths: [String]
     let placeholder: String
     var allowFiles = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title)
-                Spacer()
-                Button("Add…") { add() }
-            }
+        VStack(spacing: 0) {
             if paths.isEmpty {
-                Text(placeholder).font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text(placeholder).font(.lCaption).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 20).padding(.vertical, 14)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
             }
             ForEach(paths, id: \.self) { path in
-                HStack {
-                    Image(systemName: "folder").foregroundStyle(.secondary)
-                    Text(path).lineLimit(1).truncationMode(.middle)
+                HStack(spacing: 12) {
+                    Image(systemName: "folder").foregroundStyle(Theme.textSecondary)
+                    Text(path).font(.lBodyStrong).lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Button { paths.removeAll { $0 == path } } label: { Image(systemName: "minus.circle").foregroundStyle(.red) }
-                        .buttonStyle(.plain)
-                        .help("Remove from list")
+                    Button { paths.removeAll { $0 == path } } label: {
+                        Image(systemName: "minus").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.caution)
+                            .frame(width: 28, height: 28).background(Theme.caution.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.plain).help("Remove from list")
                 }
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
             }
+            HStack {
+                Spacer()
+                Button("Add…") { add() }.buttonStyle(.plain).font(.lCalloutStrong).foregroundStyle(Theme.rust700)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
         }
     }
 

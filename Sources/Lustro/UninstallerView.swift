@@ -58,11 +58,8 @@ struct UninstallerView: View {
     @Bindable var model: UninstallerModel
 
     var body: some View {
-        HStack(spacing: 0) {
-            appList
-                .frame(width: 290)
-                .background(.quaternary.opacity(0.2))
-                .overlay(alignment: .trailing) { Divider() }
+        HStack(spacing: 18) {
+            appList.frame(width: 300)
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task { if model.apps.isEmpty { model.load(ignoredPaths: app.settings.ignoredURLs) } }
@@ -71,101 +68,118 @@ struct UninstallerView: View {
                 model.selectedAppID = apps.first { $0.bundleID == id }?.id
             }
         }
+        .onChange(of: model.selectedAppID) { _, _ in
+            if let selected = model.selectedApp { model.plan(for: selected, ignoredPaths: app.settings.ignoredURLs) }
+        }
     }
 
     private var appList: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Uninstaller").font(.title2.weight(.bold))
+                Text("Uninstaller").font(.lTitle1)
                 Spacer()
                 Button { model.load(ignoredPaths: app.settings.ignoredURLs) } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless)
-                    .help("Reload apps")
-                    .disabled(model.isLoading)
+                    .buttonStyle(.plain).foregroundStyle(Theme.textSecondary)
+                    .help("Reload apps").disabled(model.isLoading)
             }
-            .padding(.horizontal, 14).padding(.top, 20)
-            TextField("Search \(model.apps.count) apps", text: $model.search)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, 14)
-            if model.isLoading {
-                ScanningView(message: "Finding apps…", fraction: nil)
-            } else {
-                List(model.filteredApps, selection: $model.selectedAppID) { item in
-                    HStack(spacing: 10) {
-                        Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 28, height: 28)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.name).lineLimit(1)
-                            Text(item.version.map { "Version \($0)" } ?? item.bundleID)
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textTertiary)
+                TextField("Search \(model.apps.count) apps", text: $model.search).textFieldStyle(.plain).font(.lCallout)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border))
+            Group {
+                if model.isLoading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(model.filteredApps) { item in
+                                let selected = model.selectedAppID == item.id
+                                Button { model.selectedAppID = item.id } label: {
+                                    HStack(spacing: 12) {
+                                        Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 32, height: 32)
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(item.name).font(selected ? .lCalloutStrong : .lCallout).lineLimit(1)
+                                            Text(item.version.map { "Version \($0)" } ?? item.bundleID)
+                                                .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Text(item.size.formattedBytes).font(.lCaption).foregroundStyle(Theme.textSecondary).monospacedDigit()
+                                    }
+                                    .padding(.horizontal, 10).padding(.vertical, 8)
+                                    .background(selected ? Theme.peach50 : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(selected ? Theme.orange300 : .clear))
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        Spacer()
-                        Text(item.size.formattedBytes).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .padding(8)
                     }
-                    .padding(.vertical, 2)
-                    .tag(item.id)
-                }
-                .listStyle(.sidebar)
-                .scrollContentBackground(.hidden)
-                .onChange(of: model.selectedAppID) { _, _ in
-                    if let selected = model.selectedApp { model.plan(for: selected, ignoredPaths: app.settings.ignoredURLs) }
                 }
             }
+            .frame(maxHeight: .infinity)
+            .lustroCard()
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
     }
 
     @ViewBuilder private var detail: some View {
         if let selected = model.selectedApp {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 16) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: selected.url.path)).resizable().frame(width: 64, height: 64)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(selected.name).font(.title.weight(.bold))
+            VStack(spacing: 16) {
+                HStack(spacing: 18) {
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: selected.url.path)).resizable().frame(width: 72, height: 72)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(selected.name).font(.lTitle1)
                         Text([selected.bundleID, selected.version.map { "Version \($0)" }].compactMap { $0 }.joined(separator: " · "))
-                            .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                            .font(.lCallout).foregroundStyle(Theme.textSecondary).textSelection(.enabled)
                         if let last = model.lastUsed(selected) {
-                            Label("Last opened \(last.relativeDescription)", systemImage: "clock")
-                                .font(.caption).foregroundStyle(.secondary)
+                            Label("Last opened \(last.relativeDescription)", systemImage: "clock").font(.lCaption).foregroundStyle(Theme.textSecondary)
                         }
                     }
                     Spacer()
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(model.review.totalSize.formattedBytes).font(.lMetricSmall).monospacedDigit()
+                        Text("app + \(max(model.review.allItems.count - 1, 0)) support files").font(.lCaption).foregroundStyle(Theme.textSecondary)
+                    }
                 }
-                .padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 14)
+                .padding(20)
+                .lustroCard(radius: 22)
 
                 if !model.runningInstances(of: selected).isEmpty {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("\(selected.name) is running. It will be asked to quit before uninstalling.")
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 24).padding(.bottom, 8)
+                    note(symbol: "exclamationmark.triangle", tint: Theme.review,
+                         text: "\(selected.name) is running. It will be asked to quit before uninstalling.")
                 }
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.shield").foregroundStyle(.green)
-                    Text("Support files are matched by the exact bundle ID \(selected.bundleID) — never by a similar name.")
-                        .font(.callout)
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-                .padding(.horizontal, 24).padding(.bottom, 8)
+                note(symbol: "checkmark.shield", tint: Theme.safe,
+                     text: "Support files are matched by the exact bundle ID \(selected.bundleID) — never by a similar name.")
 
                 switch model.review.phase {
                 case .scanning:
                     ScanningView(message: "Looking for support files…", fraction: nil)
                 default:
                     if let report = model.review.lastReport {
-                        ReportBanner(report: report) { model.review.dismissReport() }.padding(.horizontal, 24)
+                        ReportBanner(report: report) { model.review.dismissReport() }
                     }
                     ReviewList(model: model.review)
                     ActionBar(model: model.review, module: "Uninstaller", extraAllowedRoots: Uninstaller().searchRoots,
-                              actionTitle: "Uninstall…") { removed in model.appRemoved(removed) }
+                              actionTitle: "Uninstall") { removed in model.appRemoved(removed) }
                 }
             }
         } else {
-            ContentUnavailableView("Select an app", systemImage: "shippingbox",
-                                   description: Text("Apple apps are not listed because macOS needs them."))
+            PanelPlaceholder(symbol: "shippingbox", title: "Select an app",
+                             message: "Lustro removes the app together with its preferences, caches, containers and saved state. Apple apps are not listed because macOS needs them.") { EmptyView() }
         }
+    }
+
+    private func note(symbol: String, tint: Color, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).foregroundStyle(tint)
+            Text(text).font(.lCallout)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

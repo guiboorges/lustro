@@ -99,6 +99,9 @@ public typealias ProgressHandler = @Sendable (ScanProgress) -> Void
 public extension Int64 {
     /// Human-readable byte count, e.g. "1.2 GB".
     var formattedBytes: String {
-        ByteCountFormatter.string(fromByteCount: self, countStyle: .file)
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowsNonnumericFormatting = false // "0 bytes" rather than "Zero KB"
+        return formatter.string(fromByteCount: self)
     }
 }

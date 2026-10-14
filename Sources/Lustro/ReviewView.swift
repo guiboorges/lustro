@@ -2,7 +2,7 @@ import AppKit
 import LustroCore
 import SwiftUI
 
-/// Header + scan/review list + action bar, shared by Cleanup and Dev Purge.
+/// Header + scan/review list + floating action bar, shared by Cleanup and Dev Purge.
 struct ReviewView<EmptyContent: View, Accessory: View>: View {
     @Environment(AppModel.self) private var app
     let model: ReviewModel
@@ -10,19 +10,19 @@ struct ReviewView<EmptyContent: View, Accessory: View>: View {
     let title: String
     let subtitle: String
     let symbol: String
-    let tint: Color
     let scanner: @Sendable (@escaping ProgressHandler) async -> [ScanGroup]
     var activityDays: Int?
     @ViewBuilder var emptyContent: EmptyContent
     @ViewBuilder var accessory: Accessory
 
     var body: some View {
-        VStack(spacing: 0) {
-            ModuleHeader(title: title, subtitle: subtitle, symbol: symbol, tint: tint) {
+        VStack(spacing: 18) {
+            PanelHeader(title: title, subtitle: subtitle) {
                 if model.phase == .scanning {
-                    Button("Stop") { model.cancel() }
+                    Button("Stop") { model.cancel() }.buttonStyle(OutlineButtonStyle())
                 } else {
                     Button(model.groups.isEmpty ? "Scan" : "Scan Again") { startScan() }
+                        .buttonStyle(OutlineButtonStyle())
                         .keyboardShortcut("r")
                         .disabled(model.phase == .removing)
                 }
@@ -38,62 +38,29 @@ struct ReviewView<EmptyContent: View, Accessory: View>: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .idle:
-            VStack(spacing: 16) {
-                IconTile(symbol: symbol, tint: tint, size: 72)
+            PanelPlaceholder(symbol: symbol, title: "Ready when you are", message: "Scanning only reads your disk. Nothing is removed until you review it.") {
                 emptyContent
-                Button { startScan() } label: {
-                    Label("Scan", systemImage: "magnifyingglass").padding(.horizontal, 12).padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                Button("Scan") { startScan() }.buttonStyle(BrandButtonStyle())
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .scanning:
             ScanningView(message: model.progressMessage, fraction: model.progressFraction)
         case .reviewing, .removing:
             if model.groups.isEmpty {
-                ContentUnavailableView("Nothing to clean", systemImage: "sparkles",
-                                       description: Text(model.lastReport == nil ? "Everything here is already tidy." : "All selected items were removed."))
-                    .overlay(alignment: .top) { reportBanner }
+                PanelPlaceholder(symbol: "sparkles", title: "Nothing to clean",
+                                 message: model.lastReport == nil ? "Everything here is already tidy." : "All selected items were removed.") {
+                    if let report = model.lastReport { ReportBanner(report: report) { model.dismissReport() }.frame(maxWidth: 520) }
+                }
             } else {
-                VStack(spacing: 0) {
-                    reportBanner
+                VStack(spacing: 16) {
+                    if let report = model.lastReport {
+                        ReportBanner(report: report) { model.dismissReport() }
+                    }
                     accessory
                     ReviewList(model: model, activityDays: activityDays)
                     ActionBar(model: model, module: module)
                 }
             }
         }
-    }
-
-    @ViewBuilder private var reportBanner: some View {
-        if let report = model.lastReport {
-            ReportBanner(report: report) { model.dismissReport() }
-                .padding(.horizontal, 28).padding(.bottom, 10)
-        }
-    }
-}
-
-struct ModuleHeader<Actions: View>: View {
-    let title: String
-    let subtitle: String
-    let symbol: String
-    let tint: Color
-    @ViewBuilder var actions: Actions
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            IconTile(symbol: symbol, tint: tint, size: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.title.weight(.bold))
-                Text(subtitle).font(.callout).foregroundStyle(.secondary).lineLimit(2)
-            }
-            Spacer()
-            actions
-        }
-        .padding(.horizontal, 28)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
     }
 }
 
@@ -102,20 +69,17 @@ struct ScanningView: View {
     let fraction: Double?
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             if let fraction {
                 ProgressView(value: fraction).frame(width: 280)
             } else {
                 ProgressView().controlSize(.large)
             }
-            Text(message)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 420)
+            Text(message).font(.lCallout).foregroundStyle(Theme.textSecondary)
+                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 420)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .lustroCard(radius: 22)
     }
 }
 
@@ -124,52 +88,26 @@ struct ReviewList: View {
     var activityDays: Int?
 
     var body: some View {
-        List {
-            ForEach(model.sections, id: \.name) { section in
-                Section {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(model.sections, id: \.name) { section in
+                    let total = section.groups.reduce(Int64(0)) { $0 + $1.totalSize }
+                    SectionHeader(title: section.name, detail: total.formattedBytes)
                     ForEach(section.groups) { group in
                         GroupRow(model: model, group: group, activityDays: activityDays)
                         if model.expanded.contains(group.id) {
                             ForEach(group.items) { item in
                                 ItemRow(model: model, item: item, group: group)
-                                    .listRowBackground(Color.primary.opacity(0.025))
                             }
                         }
                     }
-                } header: {
-                    let total = section.groups.reduce(Int64(0)) { $0 + $1.totalSize }
-                    HStack(spacing: 6) {
-                        Text(section.name)
-                        Text(total.formattedBytes).foregroundStyle(.tertiary).fontWeight(.regular)
-                    }
                 }
             }
+            .padding(.bottom, 8)
         }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-    }
-}
-
-struct Checkbox: View {
-    let state: ReviewModel.CheckState
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 15))
-                .foregroundStyle(state == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(state == .on ? "Selected" : state == .mixed ? "Partly selected" : "Not selected")
-    }
-
-    private var symbol: String {
-        switch state {
-        case .on: "checkmark.square.fill"
-        case .mixed: "minus.square.fill"
-        case .off: "square"
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .lustroCard()
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -184,37 +122,40 @@ struct GroupRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        let colors = Palette.tile(group.risk == .caution ? "red" : group.tint)
+        HStack(spacing: 12) {
             Checkbox(state: model.state(of: group)) { model.toggle(group) }
             Button {
-                if model.expanded.contains(group.id) { model.expanded.remove(group.id) } else { model.expanded.insert(group.id) }
+                withAnimation(.snappy(duration: 0.2)) {
+                    if model.expanded.contains(group.id) { model.expanded.remove(group.id) } else { model.expanded.insert(group.id) }
+                }
             } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.textTertiary)
                         .rotationEffect(.degrees(model.expanded.contains(group.id) ? 90 : 0))
-                    IconTile(symbol: group.icon ?? "folder",
-                             tint: Palette.color(group.tint ?? Palette.tint(forSection: group.section)))
+                    Tile(symbol: group.icon ?? "folder", background: colors.background, foreground: colors.foreground)
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(group.title).font(.body.weight(.semibold))
-                            RiskBadge(risk: group.risk)
-                            if isActive { Badge(text: "Active", tint: .blue) }
+                        HStack(spacing: 8) {
+                            Text(group.title).font(.lBodyStrong)
+                            RiskChip(risk: group.risk)
+                            if isActive { Chip(text: "Active", tone: .neutral) }
                         }
-                        Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(detail).font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(2)
                     }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(group.totalSize.formattedBytes).font(.body.weight(.semibold).monospacedDigit())
-                        Text(itemSummary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(group.totalSize.formattedBytes).font(.lTitle3).monospacedDigit()
+                        Text(itemSummary).font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                     }
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 5)
+        .padding(.leading, 18).padding(.trailing, 20).padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
 
     private var detail: String {
@@ -222,7 +163,6 @@ struct GroupRow: View {
         return "\(group.detail) · \(isActive ? "edited" : "last touched") \(last.relativeDescription)"
     }
 
-    /// Names for small groups ("node_modules · .next"), a count otherwise.
     private var itemSummary: String {
         if group.items.count <= 3 {
             return group.items.map(\.url.lastPathComponent).joined(separator: " · ")
@@ -239,33 +179,30 @@ struct ItemRow: View {
     @State private var showWhy = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Checkbox(state: model.selection.contains(item.id) ? .on : .off) { model.toggle(item) }
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                 .resizable()
                 .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.url.lastPathComponent).lineLimit(1).truncationMode(.middle)
+                Text(item.url.lastPathComponent).font(.lCalloutStrong).lineLimit(1).truncationMode(.middle)
                 Text(item.url.deletingLastPathComponent().path.abbreviatingHome)
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                    .font(.lCaption).foregroundStyle(Theme.textSecondary).lineLimit(1).truncationMode(.head)
             }
             Spacer()
             if let note = item.note {
-                Text(note).font(.caption).foregroundStyle(.secondary)
+                Text(note).font(.lCaption).foregroundStyle(Theme.textSecondary)
             } else if let date = item.lastModified {
-                Text(date.relativeDescription).font(.caption).foregroundStyle(.secondary)
+                Text(date.relativeDescription).font(.lCaption).foregroundStyle(Theme.textSecondary)
             }
-            Text(item.size.formattedBytes).font(.callout.monospacedDigit()).frame(minWidth: 70, alignment: .trailing)
-            Button { showWhy.toggle() } label: {
-                Label("Why?", systemImage: "info.circle").font(.caption)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .popover(isPresented: $showWhy, arrowEdge: .bottom) {
-                WhyView(item: item, group: group)
-            }
+            Text(item.size.formattedBytes).font(.lCalloutStrong).monospacedDigit().frame(minWidth: 72, alignment: .trailing)
+            Button { showWhy.toggle() } label: { Label("Why?", systemImage: "info.circle") }
+                .buttonStyle(PillButtonStyle())
+                .popover(isPresented: $showWhy, arrowEdge: .bottom) { WhyView(item: item, group: group) }
         }
-        .padding(.leading, 44)
+        .padding(.leading, 66).padding(.trailing, 20).padding(.vertical, 10)
+        .background(Theme.sunken)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
         .contextMenu {
             Button("Show in Finder") { app.reveal(item.url) }
             Button("Always Ignore") {
@@ -286,59 +223,51 @@ struct WhyView: View {
         let running = AppOwnership().runningOwners(of: item.url, explicitOwners: group.owners, running: ActionBar.runningApps())
         let reasons = Explainer(policy: app.settings.policy())
             .reasons(for: item, in: group, ownerName: app.ownerName(for: item.url, explicitOwners: group.owners), runningOwners: running)
+        let caution = group.risk == .caution
         VStack(alignment: .leading, spacing: 10) {
-            Label {
-                Text(group.risk == .caution ? "Why is this listed?" : "Why is this safe?").font(.headline)
-            } icon: {
-                Image(systemName: group.risk == .caution ? "exclamationmark.shield" : "checkmark.shield")
-                    .foregroundStyle(group.risk == .caution ? .orange : .green)
+            HStack(spacing: 10) {
+                Tile(symbol: caution ? "exclamationmark.shield" : "checkmark.shield",
+                     background: (caution ? Theme.review : Theme.safe).opacity(0.12),
+                     foreground: caution ? Theme.review : Theme.safe, size: 30)
+                Text(caution ? "Why is this listed?" : "Why is this safe?").font(.lTitle3)
             }
             ForEach(reasons, id: \.self) { reason in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Image(systemName: symbol(for: reason.kind))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(color(for: reason.kind))
                         .frame(width: 14)
-                    Text(reason.text).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Text(reason.text).font(.lCallout).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Divider()
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.top, 2)
             HStack {
-                Text("Rule \(group.id) · \(group.risk.rawValue.capitalized)")
-                    .font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                Text("Rule \(group.id)").font(.lCaption).foregroundStyle(Theme.textTertiary).lineLimit(1).truncationMode(.middle)
                 Spacer()
                 Button("Always Ignore") { app.ignore(item.url) }
-                    .buttonStyle(.link).font(.caption.weight(.semibold))
+                    .buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
             }
         }
-        .padding(16)
-        .frame(width: 340)
+        .padding(18)
+        .frame(width: 350)
+        .background(Theme.card)
+        .foregroundStyle(Theme.textPrimary)
+        .preferredColorScheme(.light)
     }
 
     private func symbol(for kind: Reason.Kind) -> String {
         switch kind {
         case .ok: "checkmark"
-        case .warning: "exclamationmark.triangle"
+        case .warning: "exclamationmark.triangle.fill"
         case .info: "info.circle"
         }
     }
 
     private func color(for kind: Reason.Kind) -> Color {
         switch kind {
-        case .ok: .green
-        case .warning: .orange
-        case .info: .blue
-        }
-    }
-}
-
-struct RiskBadge: View {
-    let risk: RiskLevel
-
-    var body: some View {
-        switch risk {
-        case .safe: EmptyView()
-        case .review: Badge(text: "Review", tint: .orange)
-        case .caution: Badge(text: "Caution", tint: .red)
+        case .ok: Theme.safe
+        case .warning: Theme.review
+        case .info: Theme.orange500
         }
     }
 }
@@ -358,31 +287,24 @@ struct ActionBar: View {
     private var permanent: Bool { app.settings.removalMode == .permanent }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Checkbox(state: model.selection.isEmpty ? .off : model.selection.count == model.allItems.count ? .on : .mixed) {
+        FloatingBar {
+            Checkbox(state: model.selection.isEmpty ? .off : model.selection.count == model.allItems.count ? .on : .mixed, onDark: true) {
                 model.selectAll(model.selection.isEmpty)
             }
-            Text("\(model.selectedItems.count) of \(model.allItems.count) selected")
-                .foregroundStyle(.secondary)
+            Text("\(model.selectedItems.count) of \(model.allItems.count) selected").font(.lCallout).foregroundStyle(Theme.onBrandMuted)
             Spacer()
             if model.phase == .removing || quitting {
-                ProgressView(value: model.progressFraction ?? 0).frame(width: 120)
+                ProgressView(value: model.progressFraction ?? 0).frame(width: 120).tint(Theme.orange500)
             }
             Label(app.settings.dryRun ? "Dry run" : permanent ? "Deletes permanently" : "Moves to Trash",
                   systemImage: app.settings.dryRun ? "eye" : permanent ? "trash" : "arrow.uturn.backward")
-                .font(.caption)
-                .foregroundStyle(permanent && !app.settings.dryRun ? .red : .secondary)
-            Text(model.selectedSize.formattedBytes).font(.title3.monospacedDigit().weight(.bold))
-            Button(actionTitle ?? (permanent ? "Delete…" : "Move to Trash…")) { start() }
-                .buttonStyle(.borderedProminent)
-                .tint(permanent ? .red : .accentColor)
-                .controlSize(.large)
+                .font(.lCaption)
+                .foregroundStyle(permanent && !app.settings.dryRun ? Color(hex: 0xFF9C8A) : Theme.onBrandMuted)
+            Text(model.selectedSize.formattedBytes).font(.lTitle2).foregroundStyle(Theme.onBrand).monospacedDigit()
+            Button(actionTitle ?? (permanent ? "Delete…" : "Move to Trash")) { start() }
+                .buttonStyle(BrandButtonStyle())
                 .disabled(model.selection.isEmpty || model.phase == .removing || quitting)
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 12)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
         .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {
             Button(permanent ? "Delete Permanently" : "Move to Trash", role: permanent ? .destructive : nil) { performRemoval() }
         } message: {
@@ -486,49 +408,42 @@ struct RunningAppsSheet: View {
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Some apps are open").font(.title3.weight(.semibold))
-                    Text("Removing files of an app while it runs can make it misbehave until it restarts. Quit these apps first\(reopens ? " — Lustro reopens them when it's done —" : "") or leave their files for now.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            Tile(symbol: "exclamationmark.triangle", background: Theme.orange500.opacity(0.14), foreground: Theme.review, size: 52)
+            Text("Some apps are open").font(.lTitle2)
+            Text("Removing an app's files while it runs can make it misbehave until it restarts. Quit them first\(reopens ? " — Lustro reopens them when it's done —" : "") or leave their files for now.")
+                .font(.lCallout).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 ForEach(Array(conflicts.enumerated()), id: \.element.id) { index, conflict in
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         if let icon = NSRunningApplication(processIdentifier: conflict.app.pid)?.icon {
-                            Image(nsImage: icon).resizable().frame(width: 28, height: 28)
+                            Image(nsImage: icon).resizable().frame(width: 34, height: 34)
                         }
-                        Text(conflict.app.name).fontWeight(.semibold)
+                        Text(conflict.app.name).font(.lBodyStrong)
                         Spacer()
                         Text("\(conflict.items.count) item\(conflict.items.count == 1 ? "" : "s") · \(conflict.size.formattedBytes)")
-                            .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                            .font(.lCaption).foregroundStyle(Theme.textSecondary).monospacedDigit()
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    if index < conflicts.count - 1 { Divider() }
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    if index < conflicts.count - 1 { Rectangle().fill(Theme.border).frame(height: 1) }
                 }
             }
-            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
-            Text("Apps that don't quit within 10 seconds keep their files. Nothing is force-quit.")
-                .font(.caption).foregroundStyle(.secondary)
-            HStack {
-                Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
+            .background(Theme.sunken, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            Label("Apps that don't quit within 10 seconds keep their files. Nothing is force-quit.", systemImage: "arrow.triangle.2.circlepath")
+                .font(.lCaption).foregroundStyle(Theme.textTertiary)
+            HStack(spacing: 10) {
+                Button("Cancel", action: onCancel).buttonStyle(OutlineButtonStyle()).keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Skip Their Files", action: onSkip)
-                Button("Quit Apps and Continue", action: onQuit)
-                    .keyboardShortcut(.defaultAction)
+                Button("Skip Their Files", action: onSkip).buttonStyle(OutlineButtonStyle())
+                Button("Quit Apps and Continue", action: onQuit).buttonStyle(BrandButtonStyle()).keyboardShortcut(.defaultAction)
             }
-            .controlSize(.large)
         }
-        .padding(22)
-        .frame(width: 480)
+        .padding(26)
+        .frame(width: 520)
+        .background(Theme.card)
+        .foregroundStyle(Theme.textPrimary)
+        .preferredColorScheme(.light)
     }
 }
 
@@ -539,25 +454,26 @@ struct ReportBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: report.failures.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(report.failures.isEmpty ? .green : .orange)
-                Text(summary).font(.callout.weight(.medium))
+                    .foregroundStyle(report.failures.isEmpty ? Theme.safe : Theme.review)
+                Text(summary).font(.lCalloutStrong)
                 Spacer()
                 if !report.failures.isEmpty {
-                    Button(showFailures ? "Hide Details" : "Details") { showFailures.toggle() }.buttonStyle(.link)
+                    Button(showFailures ? "Hide Details" : "Details") { showFailures.toggle() }
+                        .buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
                 }
-                Button { dismiss() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).foregroundStyle(.secondary)
+                Button { dismiss() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).foregroundStyle(Theme.textSecondary)
             }
             if showFailures {
                 ForEach(report.failures) { failure in
                     Text("\(failure.url.path.abbreviatingHome): \(failure.reason)")
-                        .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                        .font(.lCaption).foregroundStyle(Theme.textSecondary).textSelection(.enabled)
                 }
             }
         }
-        .padding(10)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background((report.failures.isEmpty ? Theme.safe : Theme.review).opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var summary: String {
@@ -566,12 +482,5 @@ struct ReportBanner: View {
         if !report.dryRun && report.mode == .trash { text += " · undo from History" }
         if !report.failures.isEmpty { text += " · \(report.failures.count) skipped" }
         return text
-    }
-}
-
-extension String {
-    var abbreviatingHome: String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return hasPrefix(home) ? "~" + dropFirst(home.count) : self
     }
 }
