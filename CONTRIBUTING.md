@@ -1,67 +1,39 @@
-# Contributing to Lustro
+# Contributing
 
-Thanks for helping! The most useful contributions are **new cleaning rules** and **bug reports about anything Lustro removed that it shouldn't have**. The second kind is treated as the highest priority.
+Thanks for helping. Lustro removes files, so every change is judged first by one question: *could this delete something a person wants to keep?*
 
-## Adding a cleanup rule
+## Adding or changing cleaning rules (`rules.json`)
 
-Rules live in `Sources/LustroCore/Resources/rules.json`. Each category looks like this:
+Categories live in `Sources/LustroCore/Resources/rules.json`. Each target is a glob (`*`, `?`, `[…]`; no `**`).
+
+- Prefer narrow paths. `~/Library/Application Support/Foo/Cache` is good; `~/Library/Application Support/Foo/*` is not.
+- Use `"risk": "review"` unless the owning app or macOS rebuilds the files automatically; use `"caution"` for anything that can't be recreated.
+- Set `minAgeHours` for temporary files that a running tool may still be using.
+- List the owning apps in `owners`, so their files are held back while they run.
+
+## Adding app knowledge (`apps.json`)
+
+`Sources/LustroCore/Resources/apps.json` describes what belongs to a specific app:
 
 ```json
 {
-  "id": "dev-example-tool",
-  "section": "Developer tools",
-  "title": "Example Tool cache",
-  "detail": "What this is and what happens when it's removed (shown in the app).",
-  "risk": "safe",
-  "autoSelect": true,
-  "minAgeHours": 24,
-  "requiresFullDiskAccess": false,
-  "targets": [
-    { "path": "~/Library/Caches/com.example.tool/*", "exclude": ["keep-me"] }
-  ]
+  "bundleIDs": ["com.vendor.App"],
+  "name": "App",
+  "files": [{ "path": "~/Library/Application Support/App/Cache", "kind": "cache" }],
+  "never": ["~/Library/Application Support/App"],
+  "why": "Profiles hold the user's documents; only Cache is disposable."
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `id` | Unique, kebab-case. |
-| `section` | Group heading in the UI: `AI tools`, `Developer tools`, `System`, `Trash`. |
-| `risk` | `safe`: regenerated automatically. `review`: usually fine but worth a look. `caution`: may hold data the user wants; **never preselected**. |
-| `autoSelect` | Whether items start selected. Ignored for `caution`. |
-| `minAgeHours` | Optional. Skip items modified more recently than this (use for temp/session files). |
-| `requiresFullDiskAccess` | Optional. Category is skipped unless Full Disk Access is granted. |
-| `targets[].path` | Glob path. `~` and `*`, `?`, `[...]` inside a segment are supported; `**` is not, so scans stay predictable. |
-| `targets[].exclude` | Optional name patterns (last path component) that are never removed. |
+- `never` entries are never suggested for removal by any category, and a folder that *contains* one is protected too.
+- `files` entries are exceptions inside `never` folders (caches inside a profile, for example). The Uninstaller also uses both lists to find the app's files in non-standard places.
+- `why` is required: say what the data is and how you know (a vendor doc, the app's own help, or how you observed it).
+- Paths must start with `~/`. Paths shared by several apps (like `~/Library/CloudStorage`) are fine in `never`, but the Uninstaller won't offer them for any single app.
 
-**Guidelines**
-- Point at the *contents* that are safe to delete (`.../Cache/*` or a specific cache folder), not at an app's whole support folder.
-- Order matters. More specific categories should come **before** broad ones like "App caches", because the first category to claim a path keeps it.
-- If deleting it loses user data, settings, logins or work in progress, it is not junk. Don't add it, or mark it `caution`.
-- Explain in `detail` what is lost and whether it comes back.
-- Run `swift test`. The catalog test checks that the JSON loads and that the IDs are unique.
-
-## Dev Purge artifacts
-
-Artifact rules are in `Sources/LustroCore/ProjectArtifactScanner.swift` (`ArtifactRule.defaults`). Every generic folder name must require a **sibling marker file** that proves which ecosystem it belongs to.
+`swift test` validates both files (`KnowledgeBaseTests.bundledFileIsValid`), and CI runs it on every pull request.
 
 ## Code
 
-- `LustroCore` holds all logic that touches the file system. Changes there need tests, written against `FakeHome` (see `Tests/LustroCoreTests/SafetyTests.swift`). Never test against the real home folder.
-- Any change to `SafetyPolicy` needs a test that shows what is still refused.
-- The app makes no network requests. Please keep it that way.
-
-## Screenshots
-
-```sh
-LUSTRO_SNAPSHOT=/tmp/shot.png LUSTRO_MODULE=devPurge LUSTRO_AUTOSCAN=1 build/Lustro.app/Contents/MacOS/Lustro
-```
-
-This renders the window to a PNG and quits. Check screenshots for personal paths before you share them.
-
-## Troubleshooting
-
-If `swift test` fails with `resource fork, Finder information, or similar detritus not allowed`, the project probably lives in a folder that Finder or iCloud tags with metadata, such as `~/Documents`. Build outside it:
-
-```sh
-swift test --scratch-path /tmp/lustro-build
-```
+- `Sources/LustroCore` holds everything that decides or removes; it has no UI and is fully tested. New logic goes there, with tests that use a throwaway home folder.
+- The UI follows the design in Figma; propose visual changes as screenshots first.
+- No network access, analytics or telemetry, ever.

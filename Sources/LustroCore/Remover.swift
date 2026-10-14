@@ -29,16 +29,20 @@ public struct Remover: Sendable {
     public let policy: SafetyPolicy
     public let mode: RemovalMode
     public let dryRun: Bool
+    /// Skip items another process has open (a running dev server's node_modules, a log being written…).
+    public let skipOpenFiles: Bool
 
-    public init(policy: SafetyPolicy, mode: RemovalMode = .trash, dryRun: Bool = false) {
+    public init(policy: SafetyPolicy, mode: RemovalMode = .trash, dryRun: Bool = false, skipOpenFiles: Bool = true) {
         self.policy = policy
         self.mode = mode
         self.dryRun = dryRun
+        self.skipOpenFiles = skipOpenFiles
     }
 
     public func remove(_ items: [ScanItem], progress: ProgressHandler? = nil) async -> RemovalReport {
         var report = RemovalReport(dryRun: dryRun, mode: mode)
         let fileManager = FileManager()
+        let inUse = skipOpenFiles ? OpenFiles.holders(of: items.map(\.url)) : [:]
         for (index, item) in items.enumerated() {
             if Task.isCancelled { break }
             progress?(ScanProgress(message: item.url.lastPathComponent, fraction: Double(index) / Double(max(items.count, 1))))
@@ -46,6 +50,11 @@ public struct Remover: Sendable {
                 try policy.validate(item.url, fileManager: fileManager)
             } catch {
                 report.failures.append(RemovalFailure(url: item.url, reason: error.description))
+                continue
+            }
+            if let holders = inUse[item.url], !holders.isEmpty {
+                let names = Array(Set(holders.map(\.name))).sorted().prefix(3).joined(separator: ", ")
+                report.failures.append(RemovalFailure(url: item.url, reason: "In use by \(names). Quit it and try again."))
                 continue
             }
             if dryRun {

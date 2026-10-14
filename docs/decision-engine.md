@@ -1,6 +1,6 @@
 # Decision engine: deciding what can be removed
 
-Status: **Phase 1 implemented** (reasons + "Why?" UI, locked/SIP/iCloud guards, reopen quit apps, newest iPhone backup kept, preselection modes, removal history with restore). Phases 2–4 are proposals. This describes how Lustro should decide, for any file, whether it may be removed, whether it should be preselected, and why. It is informed by a behavioural study of how commercial cleaners make these decisions. No code, data or assets from them are used.
+Status: **Phases 1–4 implemented in the core** (`LustroCore`): reasons and "Why?" UI, locked/SIP/iCloud guards, reopen quit apps, newest iPhone backup kept, preselection modes, removal history with restore (phase 1); ownership checks and the *Leftovers of removed apps* category (`Leftovers.swift`, phase 2); the per-app knowledge base `apps.json` with `never` entries, used by Cleanup and the Uninstaller and validated in CI (`KnowledgeBase.swift`, phase 3); and the open-file check before removal (`OpenFiles`, phase 4). This describes how Lustro should decide, for any file, whether it may be removed, whether it should be preselected, and why. It is informed by a behavioural study of how commercial cleaners make these decisions. No code, data or assets from them are used.
 
 ## Goals
 
@@ -42,7 +42,7 @@ The UI shows `reasons` under an **"Why is this safe?"** disclosure, for example:
 
 ### 2. Knowledge base v2 (open, per-app)
 
-`rules.json` stays for categories. A new `apps/` folder holds one small file per app:
+`rules.json` stays for categories. `apps.json` holds one entry per app (implemented as a single file, so a contribution is one reviewable diff). The original proposal used one file per app:
 
 ```jsonc
 // Sources/LustroCore/Resources/apps/com.google.Chrome.json
@@ -76,6 +76,8 @@ The outcome is installed / not installed / unknown, which unlocks the next featu
 ### 4. Leftovers of removed apps (new category)
 
 When a bundle-ID-named folder in `~/Library/{Application Support,Caches,Containers,Preferences,…}` has **no installed owner**, it is a candidate leftover. Its verdict is `review`, and it is never preselected unless the KB confirms the bundle ID and the folder is older than 30 days. This is one of the most valuable things commercial cleaners do. Exact bundle-ID matching keeps it safe.
+
+As implemented, ownership is deliberately conservative: an ID is treated as owned when LaunchServices finds an app for it (or a prefix of it), when it extends or is extended by a known ID, or when **any app from the same vendor** is installed or running (vendors share preference and storage files between their apps; Adobe and Microsoft do this widely). IDs written by SDKs (Firebase, Segment, Sentry…) and system services are never candidates, and anything modified in the last 30 days is assumed to be in use. Containers are only checked with Full Disk Access, to avoid macOS's per-app data prompts.
 
 ### 5. Signals and guards
 

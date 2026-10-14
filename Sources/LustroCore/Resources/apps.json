@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "bundleIDs": ["com.google.Chrome"],
+      "name": "Google Chrome",
+      "files": [
+        { "path": "~/Library/Caches/Google/Chrome", "kind": "cache" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/Service Worker/CacheStorage", "kind": "cache" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/Code Cache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Google/Chrome/*/GPUCache", "kind": "cache" }
+      ],
+      "never": ["~/Library/Application Support/Google/Chrome"],
+      "why": "Profiles hold bookmarks, history, passwords and extension data. Only the caches inside them are disposable."
+    },
+    {
+      "bundleIDs": ["org.mozilla.firefox"],
+      "name": "Firefox",
+      "files": [{ "path": "~/Library/Caches/Firefox", "kind": "cache" }],
+      "never": ["~/Library/Application Support/Firefox"],
+      "why": "Profiles hold bookmarks, history, saved logins and extension data. The disk cache lives in ~/Library/Caches."
+    },
+    {
+      "bundleIDs": ["com.microsoft.VSCode"],
+      "name": "Visual Studio Code",
+      "files": [
+        { "path": "~/Library/Application Support/Code/Cache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Code/CachedData", "kind": "cache" },
+        { "path": "~/Library/Application Support/Code/CachedExtensionVSIXs", "kind": "cache" },
+        { "path": "~/Library/Application Support/Code/Code Cache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Code/GPUCache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Code/logs", "kind": "log" }
+      ],
+      "never": ["~/Library/Application Support/Code/User", "~/Library/Application Support/Code/Backups"],
+      "why": "User holds settings, keybindings and snippets; Backups holds unsaved editor contents (hot exit)."
+    },
+    {
+      "bundleIDs": ["com.todesktop.230313mzl4w4u92"],
+      "name": "Cursor",
+      "never": ["~/Library/Application Support/Cursor/User", "~/Library/Application Support/Cursor/Backups"],
+      "why": "Same layout as VS Code: settings in User, unsaved editor contents in Backups."
+    },
+    {
+      "bundleIDs": ["com.docker.docker"],
+      "name": "Docker Desktop",
+      "never": ["~/Library/Containers/com.docker.docker", "~/Library/Group Containers/group.com.docker"],
+      "why": "The VM disk image holds your images, containers and volumes. Prune them from Docker instead."
+    },
+    {
+      "bundleIDs": ["dev.kdrag0n.MacVirt"],
+      "name": "OrbStack",
+      "never": ["~/.orbstack", "~/OrbStack"],
+      "why": "Holds the Linux machines, images, containers and volumes."
+    },
+    {
+      "bundleIDs": ["com.getdropbox.dropbox"],
+      "name": "Dropbox",
+      "never": ["~/Library/Application Support/Dropbox", "~/.dropbox", "~/Library/CloudStorage"],
+      "why": "Sync state and files that may not be uploaded yet. Removing them can force a full resync or lose changes."
+    },
+    {
+      "bundleIDs": ["com.google.drivefs"],
+      "name": "Google Drive",
+      "never": ["~/Library/Application Support/Google/DriveFS", "~/Library/CloudStorage"],
+      "why": "DriveFS keeps locally cached and not-yet-uploaded files in its content cache."
+    },
+    {
+      "bundleIDs": ["com.microsoft.OneDrive-mac", "com.microsoft.OneDrive"],
+      "name": "OneDrive",
+      "never": ["~/Library/Containers/com.microsoft.OneDrive-mac", "~/Library/Group Containers/UBF8T346G9.OneDriveSyncClientSuite", "~/Library/CloudStorage"],
+      "why": "Sync database and pending uploads."
+    },
+    {
+      "bundleIDs": ["com.1password.1password"],
+      "name": "1Password",
+      "never": ["~/Library/Group Containers/2BUA8C4S2C.com.1password"],
+      "why": "Local vault data."
+    },
+    {
+      "bundleIDs": ["org.whispersystems.signal-desktop"],
+      "name": "Signal",
+      "never": ["~/Library/Application Support/Signal"],
+      "why": "Message history is stored only on this device; it can't be downloaded again."
+    },
+    {
+      "bundleIDs": ["net.whatsapp.WhatsApp", "desktop.WhatsApp"],
+      "name": "WhatsApp",
+      "never": ["~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared", "~/Library/Application Support/WhatsApp"],
+      "why": "Local message database and media."
+    },
+    {
+      "bundleIDs": ["com.valvesoftware.steam"],
+      "name": "Steam",
+      "files": [{ "path": "~/Library/Application Support/Steam/appcache", "kind": "cache" }],
+      "never": ["~/Library/Application Support/Steam"],
+      "why": "steamapps holds installed games and saves; downloading them again can take hours."
+    },
+    {
+      "bundleIDs": ["com.spotify.client"],
+      "name": "Spotify",
+      "files": [
+        { "path": "~/Library/Caches/com.spotify.client", "kind": "cache" },
+        { "path": "~/Library/Application Support/Spotify/PersistentCache", "kind": "cache" }
+      ],
+      "why": "Streaming cache, rebuilt as you listen. Downloaded songs live in PersistentCache too and will download again."
+    },
+    {
+      "bundleIDs": ["com.anthropic.claudefordesktop"],
+      "name": "Claude",
+      "files": [
+        { "path": "~/Library/Application Support/Claude/Cache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Claude/Code Cache", "kind": "cache" },
+        { "path": "~/Library/Application Support/Claude/GPUCache", "kind": "cache" }
+      ],
+      "never": ["~/Library/Application Support/Claude/claude-code"],
+      "why": "The embedded Claude Code install; removing it breaks Claude Code sessions in the app."
+    }
+  ]
+}

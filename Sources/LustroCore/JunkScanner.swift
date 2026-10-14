@@ -8,10 +8,14 @@ public struct JunkScanner: Sendable {
     public let hasFullDiskAccess: Bool
     public let disabledCategories: Set<String>
     public let keepNewestBackup: Bool
+    /// Per-app `never` entries override every category rule.
+    public let knowledgeBase: AppKnowledgeBase
 
     public init(catalog: RuleCatalog, policy: SafetyPolicy = SafetyPolicy(), hasFullDiskAccess: Bool = false,
-                disabledCategories: Set<String> = [], keepNewestBackup: Bool = true, now: Date = Date()) {
+                disabledCategories: Set<String> = [], keepNewestBackup: Bool = true,
+                knowledgeBase: AppKnowledgeBase = .bundled(), now: Date = Date()) {
         self.catalog = catalog
+        self.knowledgeBase = knowledgeBase
         self.policy = policy
         self.hasFullDiskAccess = hasFullDiskAccess
         self.disabledCategories = disabledCategories
@@ -63,7 +67,8 @@ public struct JunkScanner: Sendable {
                 if target.exclude?.contains(where: { PathPattern.matches(name, $0) }) == true { continue }
                 let path = url.standardizedFileURL.path
                 if claimed.contains(where: { SafetyPolicy.isSameOrInside(path, $0) || SafetyPolicy.isStrictlyInside($0, path) }) { continue }
-                guard policy.isAllowed(url), seen.insert(path).inserted else { continue }
+                guard policy.isAllowed(url), knowledgeBase.protectingApp(for: url, home: policy.home) == nil,
+                      seen.insert(path).inserted else { continue }
                 urls.append(url)
                 matchedBy[path] = target.path
             }
