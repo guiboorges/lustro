@@ -38,6 +38,12 @@ public struct Explainer: Sendable {
             reasons.append(Reason(.ok, "Belongs to \(key)"))
         }
 
+        if group.id == LeftoverScanner.groupID {
+            reasons.append(Reason(.info, "Not recreated: its app is no longer installed. It goes to the Trash, so you can put it back"))
+        } else if group.id == "app-data" {
+            reasons.append(Reason(.warning, "Your data in this app. Removing it can't be undone once the Trash is emptied"))
+        }
+
         switch group.risk {
         case .safe: reasons.append(Reason(.ok, "Recreated automatically when it's needed again"))
         case .review: reasons.append(Reason(.info, "Usually safe to remove, but worth a quick look"))

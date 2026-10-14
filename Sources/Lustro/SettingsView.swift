@@ -11,6 +11,22 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Settings").font(.lTitle1)
 
+                group("Language and appearance", symbol: "paintpalette") {
+                    row("Language", "Follows your Mac unless you choose one. Português matches Brazil or Portugal.") {
+                        HStack(spacing: 10) {
+                            if app.languageNeedsRestart {
+                                Button("Restart to Apply") { app.relaunch() }.buttonStyle(.plain).font(.lCaption).foregroundStyle(Theme.rust700)
+                            }
+                            Segmented(options: [(AppLanguage.system, String(localized: "System")), (.english, "English"), (.portuguese, "Português")],
+                                      selection: $app.settings.language, ink: true)
+                        }
+                    }
+                    row("Appearance", nil, last: true) {
+                        Segmented(options: [(Appearance.system, String(localized: "System")), (.light, String(localized: "Light")), (.dark, String(localized: "Dark"))],
+                                  selection: $app.settings.appearance, ink: true)
+                    }
+                }
+
                 group("Removing files", symbol: "trash") {
                     row("When cleaning", "Trash lets you put anything back from History. Permanent deletion can't be undone.") {
                         Segmented(options: [(RemovalMode.trash, "Move to Trash"), (.permanent, "Delete permanently")],
@@ -73,6 +89,24 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+
+                group("More categories", symbol: "shippingbox") {
+                    Toggle(isOn: Binding(
+                        get: { !app.settings.disabledCategories.contains(LeftoverScanner.groupID) },
+                        set: { on in
+                            if on { app.settings.disabledCategories.removeAll { $0 == LeftoverScanner.groupID } }
+                            else { app.settings.disabledCategories.append(LeftoverScanner.groupID) }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 8) { Text("Leftovers of removed apps").font(.lBodyStrong); RiskChip(risk: .review) }
+                            Text("Settings and data of apps that are no longer installed. Never preselected.")
+                                .font(.lCaption).foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .toggleStyle(LustroToggleStyle())
+                    .padding(.horizontal, 20).padding(.vertical, 14)
                 }
 
                 group("Dev Purge folders", symbol: "folder") {

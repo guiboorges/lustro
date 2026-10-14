@@ -7,15 +7,15 @@ extension View {
     /// White rounded card with the soft warm shadow ("v2/Card").
     func lustroCard(radius: CGFloat = 20) -> some View {
         background(Theme.card, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .shadow(color: Color(hex: 0x592608, opacity: 0.06), radius: 1, y: 1)
-            .shadow(color: Color(hex: 0x592608, opacity: 0.05), radius: 12, y: 8)
+            .shadow(color: Theme.shadow(0.06), radius: 1, y: 1)
+            .shadow(color: Theme.shadow(0.05), radius: 12, y: 8)
     }
 
     /// Strong lift for floating bars, sheets and popovers ("v2/Floating").
     func lustroFloating(radius: CGFloat = 20) -> some View {
         clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .shadow(color: Color(hex: 0x592608, opacity: 0.10), radius: 6, y: 4)
-            .shadow(color: Color(hex: 0x592608, opacity: 0.14), radius: 24, y: 20)
+            .shadow(color: Theme.shadow(0.10), radius: 6, y: 4)
+            .shadow(color: Theme.shadow(0.14), radius: 24, y: 20)
     }
 }
 
@@ -230,7 +230,7 @@ struct Segmented<Value: Hashable>: View {
                             if selected {
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                                     .fill(ink ? Theme.ink : Theme.card)
-                                    .shadow(color: ink ? .clear : Color(hex: 0x592608, opacity: 0.08), radius: 3, y: 1)
+                                    .shadow(color: ink ? .clear : Theme.shadow(0.08), radius: 3, y: 1)
                             }
                         }
                         .contentShape(Rectangle())

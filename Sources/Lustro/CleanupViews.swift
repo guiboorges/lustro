@@ -134,6 +134,7 @@ struct DevPurgeView: View {
                     KPICard(label: "Largest", value: largest.map { number($0.size) } ?? "–", unit: largest.map { unit($0.size) } ?? "",
                             detail: largest.map { "\($0.url.lastPathComponent) · \($0.url.deletingLastPathComponent().lastPathComponent)" } ?? "")
                 }
+                BackupStrip(items: model.allItems)
                 HStack(spacing: 12) {
                     Segmented(options: [(.all, "All projects"), (.inactive, "Inactive \(days)+ days"), (.largest, "Largest first")], selection: $filter)
                     Spacer()
@@ -167,6 +168,54 @@ struct DevPurgeView: View {
         var roots = app.settings.projectRoots.isEmpty ? app.settings.resolvedProjectRoots.map { $0.path.abbreviatingHome } : app.settings.projectRoots
         for url in panel.urls where !roots.contains(url.path.abbreviatingHome) { roots.append(url.path.abbreviatingHome) }
         app.settings.projectRoots = roots
+    }
+}
+
+/// Offers to keep rebuildable folders out of Time Machine. Nothing is deleted; it's the same flag as `tmutil addexclusion`.
+struct BackupStrip: View {
+    let items: [ScanItem]
+    @State private var dismissed = false
+    @State private var excluded: [URL] = []
+
+    var body: some View {
+        let backedUp = items.filter { $0.isDirectory && !BackupExclusion.isExcluded($0.url) }
+        if !excluded.isEmpty {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.safe)
+                Text("\(excluded.count) folder\(excluded.count == 1 ? "" : "s") excluded from Time Machine")
+                    .font(.lCalloutStrong).foregroundStyle(Theme.safe)
+                Button("Undo") {
+                    BackupExclusion.setExcluded(false, excluded)
+                    excluded = []
+                }
+                .buttonStyle(.plain).font(.lCalloutStrong).foregroundStyle(Theme.rust700)
+            }
+            .padding(.leading, 14).padding(.trailing, 16).padding(.vertical, 10)
+            .background(Theme.safe.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if !dismissed && !backedUp.isEmpty {
+            let size = backedUp.reduce(Int64(0)) { $0 + $1.size }
+            let projects = Set(backedUp.map { $0.url.deletingLastPathComponent().path }).count
+            let kinds = Array(Set(backedUp.map(\.url.lastPathComponent))).sorted().prefix(3).joined(separator: ", ")
+            HStack(spacing: 14) {
+                Tile(symbol: "clock.arrow.circlepath", size: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(size.formattedBytes) of rebuildable folders are in your Time Machine backups").font(.lBodyStrong)
+                    Text("\(kinds) in \(projects) project\(projects == 1 ? "" : "s"). They can be rebuilt, so backing them up only costs space and time. Nothing is deleted.")
+                        .font(.lCaption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Button("Not Now") { dismissed = true }.buttonStyle(OutlineButtonStyle())
+                Button("Exclude from Backups") {
+                    let urls = backedUp.map(\.url)
+                    let failed = BackupExclusion.setExcluded(true, urls)
+                    excluded = urls.filter { !failed.contains($0) }
+                }
+                .buttonStyle(InkButtonStyle())
+            }
+            .padding(.horizontal, 18).padding(.vertical, 14)
+            .lustroCard()
+        }
     }
 }
 

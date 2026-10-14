@@ -252,7 +252,6 @@ struct WhyView: View {
         .frame(width: 350)
         .background(Theme.card)
         .foregroundStyle(Theme.textPrimary)
-        .preferredColorScheme(.light)
     }
 
     private func symbol(for kind: Reason.Kind) -> String {
@@ -443,7 +442,6 @@ struct RunningAppsSheet: View {
         .frame(width: 520)
         .background(Theme.card)
         .foregroundStyle(Theme.textPrimary)
-        .preferredColorScheme(.light)
     }
 }
 

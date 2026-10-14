@@ -423,7 +423,6 @@ struct StopGroupSheet: View {
         .frame(width: 520)
         .background(Theme.card)
         .foregroundStyle(Theme.textPrimary)
-        .preferredColorScheme(.light)
     }
 
     private var explanation: String {

@@ -9,8 +9,13 @@ final class AppModel {
         didSet {
             guard settings != oldValue else { return }
             try? settings.save()
+            if settings.appearance != oldValue.appearance { applyAppearance() }
+            if settings.language != oldValue.language { applyLanguage() }
         }
     }
+    /// The language chosen when Lustro started; a different choice takes effect after a restart.
+    private let launchLanguage = LustroSettings.load().language
+    var languageNeedsRestart: Bool { settings.language != launchLanguage }
     private(set) var hasFullDiskAccess = false
     let catalog: RuleCatalog?
     let catalogError: String?
@@ -51,6 +56,45 @@ final class AppModel {
               let total = values.volumeTotalCapacity,
               let available = values.volumeAvailableCapacityForImportantUsage else { return }
         disk = (Int64(total), available)
+    }
+
+    /// Who still owns a bundle-ID-named folder: installed apps (LaunchServices knows them all, wherever they live),
+    /// running apps, and working launch agents. Anything from the same vendor counts too (see LeftoverScanner).
+    nonisolated static func leftoverOwnerCheck() -> LeftoverScanner.OwnerCheck {
+        var known = Uninstaller().installedApps(measureSizes: false).map(\.bundleID)
+        known += NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
+        known += LaunchItemScanner().scan(disabledLabels: []).filter { !$0.isBroken }.map(\.label)
+        return LeftoverScanner.ownerCheck(knownIDs: known) { id in
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) != nil
+        }
+    }
+
+    /// Sets the appearance for every window, sheets included. Nil follows macOS.
+    func applyAppearance() {
+        switch settings.appearance {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
+    /// macOS reads the app's `AppleLanguages` default at launch.
+    private func applyLanguage() {
+        if let languages = settings.language.appleLanguages() {
+            UserDefaults.standard.set(languages, forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        }
+    }
+
+    func relaunch() {
+        let path = Bundle.main.bundlePath
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Wait for this instance to quit, then open the app again.
+        task.arguments = ["-c", "while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done; open \"\(path)\""]
+        try? task.run()
+        NSApp.terminate(nil)
     }
 
     func openFullDiskAccessSettings() {

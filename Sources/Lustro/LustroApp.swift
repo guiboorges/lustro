@@ -12,8 +12,6 @@ struct LustroApp: App {
             RootView()
                 .environment(app)
                 .frame(minWidth: 1240, minHeight: 780)
-                // The v2 design is light-only for now; a dark palette can follow.
-                .preferredColorScheme(.light)
                 .tint(Theme.orange500)
         }
         .windowStyle(.hiddenTitleBar)
@@ -26,7 +24,6 @@ struct LustroApp: App {
                 .padding(28)
                 .frame(width: 760, height: 720)
                 .background(Theme.canvas)
-                .preferredColorScheme(.light)
         }
     }
 }
@@ -108,6 +105,7 @@ struct RootView: View {
             app.refreshDisk()
         }
         .task {
+            if !DevSnapshot.isActive { app.applyAppearance() }
             startInitialScans()
             maintenance.startSampling()
             devActivity.startSampling()
@@ -146,7 +144,17 @@ struct RootView: View {
         guard let catalog = app.catalog else { return }
         let scanner = JunkScanner(catalog: catalog, policy: app.settings.policy(), hasFullDiskAccess: app.hasFullDiskAccess,
                                   disabledCategories: Set(app.settings.disabledCategories), keepNewestBackup: app.settings.keepNewestBackup)
-        cleanup.scan(preselection: app.settings.preselection) { await scanner.scan(progress: $0) }
+        let wantsLeftovers = !app.settings.disabledCategories.contains(LeftoverScanner.groupID)
+        let policy = app.settings.policy(), fullDiskAccess = app.hasFullDiskAccess
+        cleanup.scan(preselection: app.settings.preselection) { progress in
+            var groups = await scanner.scan(progress: progress)
+            // Runs off the main thread: the ownership check asks LaunchServices about every candidate.
+            if wantsLeftovers, let group = LeftoverScanner(policy: policy, hasFullDiskAccess: fullDiskAccess,
+                                                            isOwned: AppModel.leftoverOwnerCheck()).scan() {
+                groups.append(group)
+            }
+            return groups
+        }
     }
 
     private func scanDevPurge() {
@@ -168,7 +176,7 @@ struct Sidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white)
+                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Theme.card)
                     .frame(width: 34, height: 34)
                     .overlay { Image(systemName: "sparkles").font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.rust700) }
                 Text("Lustro").font(.lTitle2).foregroundStyle(Theme.onBrand)

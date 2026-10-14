@@ -394,7 +394,6 @@ struct QuitProcessSheet: View {
         .frame(width: 520)
         .background(Theme.card)
         .foregroundStyle(Theme.textPrimary)
-        .preferredColorScheme(.light)
     }
 
     @ViewBuilder private var note: some View {

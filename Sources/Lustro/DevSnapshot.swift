@@ -8,6 +8,7 @@ import AppKit
 enum DevSnapshot {
     private static var env: [String: String] { ProcessInfo.processInfo.environment }
 
+    static var isActive: Bool { env["LUSTRO_SNAPSHOT"] != nil }
     static var initialModule: Module? { env["LUSTRO_MODULE"].flatMap(Module.init(rawValue:)) }
     static var autoScan: Bool { env["LUSTRO_AUTOSCAN"] == "1" }
     static var selectBundleID: String? { env["LUSTRO_SELECT_APP"] }

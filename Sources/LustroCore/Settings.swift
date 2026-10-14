@@ -10,6 +10,25 @@ public enum PreselectionMode: String, Codable, Sendable, CaseIterable {
     case allSafe
 }
 
+/// Light or dark, or whatever macOS uses.
+public enum Appearance: String, Codable, Sendable, CaseIterable {
+    case system, light, dark
+}
+
+/// The interface language. `system` follows macOS; Portuguese picks Brazil or Portugal from the Mac's list.
+public enum AppLanguage: String, Codable, Sendable, CaseIterable {
+    case system, english, portuguese
+
+    /// Value for the app's `AppleLanguages` default, or nil to follow macOS.
+    public func appleLanguages(preferred: [String] = Locale.preferredLanguages) -> [String]? {
+        switch self {
+        case .system: nil
+        case .english: ["en"]
+        case .portuguese: [preferred.contains { $0.hasPrefix("pt-PT") } ? "pt-PT" : "pt-BR"]
+        }
+    }
+}
+
 /// User settings, persisted as JSON in `~/Library/Application Support/Lustro/settings.json`.
 public struct LustroSettings: Codable, Equatable, Sendable {
     public var removalMode: RemovalMode = .trash
@@ -24,6 +43,8 @@ public struct LustroSettings: Codable, Equatable, Sendable {
     public var inactiveDaysForAutoSelect: Int = 30
     /// Junk category IDs the user turned off.
     public var disabledCategories: [String] = []
+    public var appearance: Appearance = .system
+    public var language: AppLanguage = .system
 
     public init() {}
 
@@ -82,5 +103,7 @@ extension LustroSettings {
         projectRoots = try c.decodeIfPresent([String].self, forKey: .projectRoots) ?? projectRoots
         inactiveDaysForAutoSelect = try c.decodeIfPresent(Int.self, forKey: .inactiveDaysForAutoSelect) ?? inactiveDaysForAutoSelect
         disabledCategories = try c.decodeIfPresent([String].self, forKey: .disabledCategories) ?? disabledCategories
+        appearance = try c.decodeIfPresent(Appearance.self, forKey: .appearance) ?? appearance
+        language = try c.decodeIfPresent(AppLanguage.self, forKey: .language) ?? language
     }
 }

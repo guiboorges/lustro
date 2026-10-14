@@ -4,45 +4,56 @@ import LustroCore
 import SwiftUI
 
 /// Design tokens from the Figma file ("Lustro v2" collection, page "v2 · Premium").
+/// Every token has a light and a dark value (the collection's Light and Dark modes).
 enum Theme {
     // Brand: "Industrial Rust Glow"
     static let rust900 = Color(hex: 0x7A2A08)
-    static let rust700 = Color(hex: 0xB7410E)
+    static let rust700 = Color(light: 0xB7410E, dark: 0xFF8F57)
     static let orange500 = Color(hex: 0xFF7722)
     static let orange300 = Color(hex: 0xFFA266)
-    static let peach100 = Color(hex: 0xFFE8D6)
-    static let peach50 = Color(hex: 0xFFF4EC)
+    static let peach100 = Color(light: 0xFFE8D6, dark: 0x3A2217)
+    static let peach50 = Color(light: 0xFFF4EC, dark: 0x2A1912)
 
     // Surfaces
-    static let canvas = Color(hex: 0xFFF9F5)
-    static let card = Color.white
-    static let sunken = Color(hex: 0xFBF1EA)
-    static let ink = Color(hex: 0x22140D)
-    static let border = Color(hex: 0xF1E3D8)
-    static let sand = Color(hex: 0xF3DCCB)
-    static let chartInk = Color(hex: 0x3A2418)
+    static let canvas = Color(light: 0xFFF9F5, dark: 0x16100D)
+    static let card = Color(light: 0xFFFFFF, dark: 0x211915)
+    static let sunken = Color(light: 0xFBF1EA, dark: 0x2B211C)
+    static let ink = Color(light: 0x22140D, dark: 0x3D2C24)
+    static let border = Color(light: 0xF1E3D8, dark: 0x342720)
+    static let sand = Color(light: 0xF3DCCB, dark: 0x3A2C25)
+    static let chartInk = Color(light: 0x3A2418, dark: 0x5A4034)
 
     // Text
-    static let textPrimary = Color(hex: 0x22140D)
-    static let textSecondary = Color(hex: 0x8C7467)
-    static let textTertiary = Color(hex: 0xBFA899)
+    static let textPrimary = Color(light: 0x22140D, dark: 0xF6EDE6)
+    static let textSecondary = Color(light: 0x8C7467, dark: 0xB39B8D)
+    static let textTertiary = Color(light: 0xBFA899, dark: 0x7D685B)
     static let onBrand = Color.white
     static let onBrandMuted = Color.white.opacity(0.72)
 
     // Status
-    static let safe = Color(hex: 0x2FA36B)
-    static let review = Color(hex: 0xE8890C)
-    static let caution = Color(hex: 0xE5484D)
+    static let safe = Color(light: 0x2FA36B, dark: 0x45C486)
+    static let review = Color(light: 0xE8890C, dark: 0xF5A23F)
+    static let caution = Color(light: 0xE5484D, dark: 0xFF6B6E)
 
-    /// Window frame: dark rust top-left → orange → peach bottom-right.
+    /// Window frame: dark rust top-left → orange → peach bottom-right (deeper embers in dark mode).
     static let frameGradient = LinearGradient(
-        stops: [.init(color: rust700, location: 0), .init(color: orange500, location: 0.55), .init(color: peach100, location: 1)],
+        stops: [.init(color: Color(light: 0xB7410E, dark: 0x5C1F06), location: 0),
+                .init(color: Color(light: 0xFF7722, dark: 0xA63A0C), location: 0.55),
+                .init(color: Color(light: 0xFFE8D6, dark: 0x2A1912), location: 1)],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
     /// Primary call-to-action fill.
     static let buttonGradient = LinearGradient(colors: [Color(hex: 0xFF8833), Color(hex: 0xD9520F)], startPoint: .top, endPoint: .bottom)
     /// Deeper variant for cards with white text.
-    static let promoGradient = LinearGradient(colors: [Color(hex: 0x7A2A08), rust700, orange500], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let promoGradient = LinearGradient(colors: [Color(hex: 0x7A2A08), Color(hex: 0xB7410E), orange500], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+    /// Warm shadow in light mode, plain black (and stronger) in dark mode.
+    static func shadow(_ opacity: Double) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.isDark ? NSColor.black.withAlphaComponent(min(opacity * 4, 0.6))
+                : NSColor(red: 0x59 / 255, green: 0x26 / 255, blue: 0x08 / 255, alpha: opacity)
+        })
+    }
 
     /// Shades used for charts and treemaps, darkest first.
     static let chart: [Color] = [rust700, orange500, orange300, chartInk, rust900, sand, peach100, Color(hex: 0xE9B08A), Color(hex: 0xC8653A)]
@@ -52,10 +63,24 @@ enum Theme {
     }
 }
 
+extension NSAppearance {
+    var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
+}
+
 extension Color {
     init(hex: UInt32, opacity: Double = 1) {
         self.init(.sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255,
                   blue: Double(hex & 0xFF) / 255, opacity: opacity)
+    }
+
+    /// A colour that follows the window's light or dark appearance.
+    init(light: UInt32, dark: UInt32) {
+        func ns(_ hex: UInt32) -> NSColor {
+            NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                    blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        }
+        let lightColor = ns(light), darkColor = ns(dark)
+        self.init(nsColor: NSColor(name: nil) { $0.isDark ? darkColor : lightColor })
     }
 }
 
