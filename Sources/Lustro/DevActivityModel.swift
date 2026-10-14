@@ -144,7 +144,8 @@ final class DevActivityModel {
 
     /// A plain-text summary for an issue, a chat or a colleague. Command lines are already redacted.
     func copyReport() {
-        var lines = ["Dev Activity · \(Date().formatted(date: .abbreviated, time: .shortened))", ""]
+        var lines = ["Dev Activity · \(Date().formatted(date: .abbreviated, time: .shortened))",
+                     String(localized: "Tokens, passwords and keys Lustro recognises are hidden. Check for other secrets before sharing."), ""]
         if !report.orphans.isEmpty {
             lines.append("Orphans (their terminal or session has ended)")
             for group in report.orphans { lines.append("- " + summary(group)) }

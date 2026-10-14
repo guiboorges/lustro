@@ -214,5 +214,8 @@ import Testing
         let before = MailIndex.size(home: home)
         try MailIndex.compact(index)
         #expect(MailIndex.size(home: home) < before)
+        // The safety copy is removed once the compacted index checks out.
+        #expect(!FileManager.default.fileExists(atPath: index.path + ".lustro-backup"))
+        #expect(Shell.run("/usr/bin/sqlite3", [index.path, "PRAGMA integrity_check;"]).output.trimmingCharacters(in: .whitespacesAndNewlines) == "ok")
     }
 }

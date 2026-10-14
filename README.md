@@ -58,7 +58,8 @@ Cleaning tools delete things. Lustro is designed so that a mistake is hard to ma
 - **Caution items are never preselected,** for example Xcode archives, iPhone backups and local AI models.
 - **Processes are asked, not killed.** Quitting a process sends it a normal quit request (apps get to ask about unsaved work); Force Quit is offered only if it doesn't respond within 10 seconds. macOS processes and other users' processes can't be quit from Lustro.
 - **Launch agents are switched off, not deleted.** Turning one off uses launchd's own disabled list, so it can be turned back on at any time. Only agents whose app is gone can be removed, and they go to the Trash and into History.
-- **Command lines are redacted.** Tokens, passwords, API keys and credentials in URLs are masked before anything is shown or copied.
+- **Command lines are redacted, best effort.** Tokens, passwords, API keys and credentials in URLs are masked before anything is shown or copied. Not every secret can be recognised, so read a copied report before sharing it publicly.
+- **Tune-ups that change data ask first.** Removing local Time Machine snapshots (they are backups) and compacting Mail's index both need a confirmation. Mail's index is cloned before it's compacted and only discarded once the result passes SQLite's integrity check.
 - **Admin tasks use the standard password prompt.** Flushing DNS and rebuilding Spotlight run through macOS's own authorisation dialog; Lustro doesn't install a privileged helper.
 
 ## Privacy
@@ -89,11 +90,7 @@ open build/Lustro.app
 
 Run the tests with `swift test`.
 
-Each build gets a new ad-hoc signature, so macOS asks for permissions such as Full Disk Access again. To keep them across rebuilds, create a local signing identity once (the key stays in your keychain):
-
-```sh
-scripts/create-signing-identity.sh
-```
+Local builds are signed ad-hoc, so macOS asks for permissions such as Full Disk Access again after each rebuild. This is on purpose: a self-signed identity that `codesign` can use without a password would let any program in your account sign itself as Lustro and inherit its permissions.
 
 ### Full Disk Access (optional)
 

@@ -53,14 +53,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Signing, in order of preference:
-#   SIGN_IDENTITY=…              e.g. a Developer ID for releases
-#   "Lustro Local Signing"       stable local identity (scripts/create-signing-identity.sh), so macOS keeps
-#                                permissions such as Full Disk Access across rebuilds
-#   ad-hoc ("-")                 works anywhere, but permissions must be granted again after each build
-if [ -z "${SIGN_IDENTITY:-}" ] && security find-certificate -c "Lustro Local Signing" >/dev/null 2>&1; then
-    SIGN_IDENTITY="Lustro Local Signing"
-fi
+# Ad-hoc signature by default. It changes on every build, so macOS asks for permissions such as Full Disk Access
+# again after an update. That is deliberate: a stable self-signed identity whose key codesign can use without a
+# prompt would let any program in your account sign itself as Lustro and inherit those permissions.
+# Releases can pass a Developer ID: SIGN_IDENTITY="Developer ID Application: …" scripts/build-app.sh
 xattr -cr "$APP" 2>/dev/null || true
 codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP"
 echo "Built $APP ($VERSION)"

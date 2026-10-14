@@ -11,13 +11,13 @@ struct DevActivityView: View {
         VStack(spacing: 16) {
             PanelHeader(title: "Dev Activity",
                         subtitle: "What you left running: AI agents, terminals, servers and containers, grouped by where they started.") {
-                Button(copied ? "Copied" : "Copy Report") {
+                Button(copied ? "Copied · check before sharing" : "Copy Report") {
                     model.copyReport()
                     copied = true
-                    Task { try? await Task.sleep(for: .seconds(2)); copied = false }
+                    Task { try? await Task.sleep(for: .seconds(4)); copied = false }
                 }
                 .buttonStyle(OutlineButtonStyle())
-                .help("Copies a text summary. Command lines are redacted.")
+                .help("Copies a text summary. Known kinds of secrets are hidden, but not every secret can be recognised: read it before sharing it publicly.")
                 Button("Refresh") { Task { await model.refresh() } }.buttonStyle(InkButtonStyle())
             }
             if let orphan = model.report.orphans.first {

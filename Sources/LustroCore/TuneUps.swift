@@ -75,29 +75,64 @@ public enum MailIndex {
     }
 
     public enum Failure: Error, CustomStringConvertible {
-        case open(String), vacuum(String)
+        case open(String), vacuum(String), backup(String)
         public var description: String {
             switch self {
+            case .backup(let m): String(localized: "Couldn't make a safety copy of Mail's index, so nothing was changed: \(m)")
             case .open(let m): String(localized: "Couldn't open Mail's index: \(m)")
             case .vacuum(let m): String(localized: "Couldn't compact Mail's index: \(m)")
             }
         }
     }
 
-    /// Rewrites the index without its free pages. Mail must be closed. SQLite does this in a transaction,
-    /// so an interruption leaves the original intact.
+    /// Rewrites the index without its free pages. Mail must be closed. SQLite does this in a transaction, so an
+    /// interruption leaves the original intact; on top of that, the index (and its -wal/-shm files) is cloned first
+    /// (instant on APFS) and the copy is only removed once the database checks out.
     public static func compact(_ url: URL) throws(Failure) {
+        let fileManager = FileManager.default
+        let parts = [url] + ["-wal", "-shm"].map { URL(fileURLWithPath: url.path + $0) }.filter { fileManager.fileExists(atPath: $0.path) }
+        let backups = parts.map { URL(fileURLWithPath: $0.path + ".lustro-backup") }
+        for backup in backups { try? fileManager.removeItem(at: backup) }
+        do {
+            for (part, backup) in zip(parts, backups) { try fileManager.copyItem(at: part, to: backup) }
+        } catch {
+            for backup in backups { try? fileManager.removeItem(at: backup) }
+            throw .backup(error.localizedDescription)
+        }
+
         var db: OpaquePointer?
         guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else {
             let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
             sqlite3_close(db)
+            for backup in backups { try? fileManager.removeItem(at: backup) }
             throw .open(message)
         }
-        defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 5000)
-        guard sqlite3_exec(db, "VACUUM;", nil, nil, nil) == SQLITE_OK else {
-            throw .vacuum(String(cString: sqlite3_errmsg(db)))
+        let vacuumed = sqlite3_exec(db, "VACUUM;", nil, nil, nil) == SQLITE_OK
+        let error = vacuumed ? nil : String(cString: sqlite3_errmsg(db))
+        let healthy = vacuumed && integrityCheck(db)
+        sqlite3_close(db)
+        if healthy {
+            for backup in backups { try? fileManager.removeItem(at: backup) }
+        } else if vacuumed {
+            // VACUUM succeeded but the result looks wrong: put the original back.
+            for (part, backup) in zip(parts, backups) {
+                _ = try? fileManager.replaceItemAt(part, withItemAt: backup)
+            }
+            throw .vacuum(String(localized: "The compacted index failed its check, so the original was put back."))
+        } else {
+            // SQLite rolled back; the original is untouched, so the copy isn't needed.
+            for backup in backups { try? fileManager.removeItem(at: backup) }
+            throw .vacuum(error ?? "unknown error")
         }
+    }
+
+    private static func integrityCheck(_ db: OpaquePointer?) -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "PRAGMA quick_check;", -1, &statement, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0) else { return false }
+        return String(cString: text) == "ok"
     }
 }
 

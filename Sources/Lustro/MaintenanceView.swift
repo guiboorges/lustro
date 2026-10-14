@@ -291,6 +291,8 @@ private struct LaunchItemsCard: View {
 
 private struct TuneUpsSection: View {
     let model: MaintenanceModel
+    /// Tune-ups that change data ask first.
+    @State private var confirming: MaintenanceModel.TuneUp?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -298,20 +300,36 @@ private struct TuneUpsSection: View {
                 .font(.system(size: 11, weight: .semibold))
             HStack(spacing: 16) {
                 card(.snapshots, symbol: "clock.arrow.circlepath", title: "Local snapshots",
-                     detail: "Time Machine copies on this disk, freed when space runs low.",
+                     detail: "Local Time Machine backups. Removing them frees space but you can't restore from them.",
                      meta: model.snapshots.isEmpty ? (model.purgeable > 0 ? "\(model.purgeable.formattedBytes) purgeable" : "No snapshots")
                          : model.snapshots.count == 1 ? "\(model.purgeable.formattedBytes) · 1 snapshot"
                          : "\(model.purgeable.formattedBytes) · \(model.snapshots.count) snapshots",
-                     action: "Thin", ink: true)
+                     action: "Remove…", ink: true)
                 card(.mail, symbol: "envelope", title: "Speed up Mail",
                      detail: "Compacts Mail's index. Mail needs to be closed first.",
-                     meta: model.mailIndexSize.map { size -> LocalizedStringKey in "Index is \(size.formattedBytes)" } ?? "Needs Full Disk Access", action: "Run")
+                     meta: model.mailIndexSize.map { size -> LocalizedStringKey in "Index is \(size.formattedBytes)" } ?? "Needs Full Disk Access", action: "Compact…")
                 card(.dns, symbol: "globe", title: "Flush DNS cache",
                      detail: "For sites that won't load after a network change.", meta: "Asks for password", action: "Run")
                 card(.spotlight, symbol: "magnifyingglass", title: "Rebuild Spotlight",
                      detail: "Only if search misses files. Can take hours.", meta: "Asks for password", action: "Run")
             }
             .fixedSize(horizontal: false, vertical: true)
+        }
+        .confirmationDialog(confirming == .snapshots ? "Remove local Time Machine snapshots?" : "Compact Mail's index?",
+                            isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible, presenting: confirming) { tuneUp in
+            if tuneUp == .snapshots {
+                Button("Remove Snapshots", role: .destructive) { Task { await model.run(.snapshots) } }
+            } else {
+                Button("Compact Index") { Task { await model.run(.mail) } }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { tuneUp in
+            if tuneUp == .snapshots {
+                Text("They are backups you can restore files from, kept on this Mac until it needs the space. Your backups on the Time Machine disk aren't affected. This can't be undone.")
+            } else {
+                Text("Lustro rewrites Mail's message index without its unused space. Your messages aren't changed, and a copy of the index is kept until the result checks out. Keep Mail closed until it finishes.")
+            }
         }
     }
 
@@ -336,12 +354,15 @@ private struct TuneUpsSection: View {
                 case .failed(let message):
                     Text(message).font(.lCaption).foregroundStyle(Theme.review).lineLimit(1).help(message)
                 case nil:
-                    Text(meta).font(.lCaption).foregroundStyle(Theme.textPrimary).lineLimit(2)
+                    Text(meta).font(.lCaption).foregroundStyle(Theme.textPrimary).lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 4)
-                Button(action) { Task { await model.run(tuneUp) } }
+                Button(action) {
+                    if tuneUp == .snapshots || tuneUp == .mail { confirming = tuneUp } else { Task { await model.run(tuneUp) } }
+                }
                     .buttonStyle(TuneUpButtonStyle(ink: ink))
+                    .fixedSize()
                     .disabled(status == .running)
             }
         }

@@ -108,8 +108,10 @@ final class AppModel {
         let path = Bundle.main.bundlePath
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        // Wait for this instance to quit, then open the app again.
-        task.arguments = ["-c", "while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done; open \"\(path)\""]
+        // Wait for this instance to quit, then open the app again. The pid and path are passed as arguments,
+        // never spliced into the script, so an unusual folder name can't be read as a command.
+        task.arguments = ["-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; open \"$2\"", "relaunch",
+                          String(ProcessInfo.processInfo.processIdentifier), path]
         try? task.run()
         NSApp.terminate(nil)
     }
